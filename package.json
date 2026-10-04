@@ -1,0 +1,18 @@
+{
+  "name": "context-ledger",
+  "version": "1.0.0",
+  "description": "Local-first AI conversation archives with zero-token defaults and optional BYOK analysis.",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "context-ledger": "./src/cli.js"
+  },
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check src/cli.js && node --check src/lib/ai.js && node --check src/lib/archive.js && node --check src/lib/context.js && node --check src/lib/inverted-index.js && node --check src/lib/normalized-import.js && node --check src/lib/plugin-registry.js && node --check src/lib/project-graph.js && node --check src/lib/release.js && node --check src/lib/share-link.js && node --check src/lib/viewer.js && node --check src/sdk/recorder.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "Apache-2.0"
+}

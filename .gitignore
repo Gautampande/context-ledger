@@ -1,0 +1,12 @@
+# User archives can contain private conversations. Do not commit them by default.
+archives/
+snapshots/
+work/
+*.aicx.enc
+*.ai.json
+*.aicx.project.json
+*.aicx.json.index.json
+*.annotations.json
+.env
+.idea/
+.DS_Store

@@ -1,0 +1,14 @@
+{
+  "schema": "context-ledger-import/0.1",
+  "title": "Normalized import example",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Please preserve this literal heading:\n\n## User\n\nIt is part of my message, not a new turn."
+    },
+    {
+      "role": "assistant",
+      "content": "The normalized importer preserves that text as one message."
+    }
+  ]
+}

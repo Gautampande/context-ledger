@@ -1,0 +1,14 @@
+{
+  "schema": "context-ledger-plugin-registry/0.1",
+  "adapters": [
+    {
+      "schema": "context-ledger-adapter-manifest/0.1",
+      "id": "normalized-json",
+      "name": "Normalized JSON importer",
+      "version": "1.0.0",
+      "inputFormat": "context-ledger-import/0.1",
+      "capabilities": ["normalize-only"],
+      "securityContact": "See SECURITY.md in the Context Ledger repository."
+    }
+  ]
+}
