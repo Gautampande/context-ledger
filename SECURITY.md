@@ -2,7 +2,7 @@
 
 ## Supported version
 
-Only the latest `1.0.x` Git release is supported.
+Only the latest `1.1.x` Git release is supported.
 
 ## Reporting a vulnerability
 

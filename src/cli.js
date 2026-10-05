@@ -2,6 +2,7 @@
 import path from "node:path";
 import { createAiPlan, invokeAiPlan } from "./lib/ai.js";
 import { createArchiveFromMarkdown, createArchiveFromNormalizedImport, addAnnotation, readAnnotations, readArchive, writeArchiveBundle } from "./lib/archive.js";
+import { importChatGptSharedConversation } from "./lib/chatgpt-share.js";
 import { expandEvidenceWindow, buildContinuationPacket } from "./lib/context.js";
 import { decryptArchive, encryptArchive, samePassphrase } from "./lib/crypto-envelope.js";
 import { SecurityError, UsageError } from "./lib/errors.js";
@@ -28,7 +29,7 @@ import { searchArchive } from "./lib/search.js";
 import { acquireSharedSnapshot } from "./lib/share-link.js";
 import { renderStaticViewer } from "./lib/viewer.js";
 
-const HELP = `Context Ledger 1.0 — local-first AI conversation archives
+const HELP = `Context Ledger 1.1 — local-first AI conversation archives
 
 Usage:
   import-markdown --input <file> --out <relative-directory>
@@ -37,11 +38,12 @@ Usage:
   verify-index --archive <file>
   inspect --archive <file>
   search --archive <file> --query <text>
-  annotate --archive <file> --event <event-id> --kind <decision|important|question> --note <text>
+  annotate --archive <file> --event <event-id> --kind <decision|important|question|pin> --note <text>
   continue --archive <file> --out <relative-file> [--select <event-id> ... | --query <text>]
   encrypt --input <archive-file> --out <relative-file>
   decrypt --input <encrypted-file> --out <relative-file>
   fetch-share --url <supported-public-share-link> --out <relative-directory>
+  import-chatgpt-share --url <https://chatgpt.com/share/...> --out <relative-directory>
   viewer --archive <file> --out <relative-html-file>
   ai-plan --archive <file> --provider <openai|anthropic|gemini|ollama> --model <model> --task <summary|extract|semantic> [--query <text>] [--max-input-chars <1000-200000>] [--max-output-tokens <16-8192>]
   ai-run --archive <file> --provider <openai|anthropic|gemini|ollama> --model <model> --task <summary|extract|semantic> --consent <plan-consent-id> --out <relative-ai-result-file> [--query <text>] [--max-input-chars <1000-200000>] [--max-output-tokens <16-8192>] [--allow-remote yes | --allow-local-ai yes]
@@ -289,6 +291,19 @@ async function commandFetchShare(values) {
   writeJson({ ...result, aiCalls: 0, parser: "none" });
 }
 
+async function commandImportChatGptShare(values) {
+  const result = await importChatGptSharedConversation(one(values, "url"), one(values, "out"));
+  writeJson({
+    archiveId: result.archive.archiveId,
+    archive: result.bundle.archive,
+    index: result.index.path,
+    directory: result.bundle.directory,
+    capture: result.capture,
+    limitations: result.limitations,
+    aiCalls: 0,
+  });
+}
+
 async function commandViewer(values) {
   const archivePath = one(values, "archive");
   const archive = await readArchive(archivePath);
@@ -433,6 +448,7 @@ async function main() {
     encrypt: commandEncrypt,
     decrypt: commandDecrypt,
     "fetch-share": commandFetchShare,
+    "import-chatgpt-share": commandImportChatGptShare,
     viewer: commandViewer,
     "ai-plan": commandAiPlan,
     "ai-run": commandAiRun,
@@ -461,6 +477,7 @@ async function main() {
     encrypt: ["input", "out"],
     decrypt: ["input", "out"],
     "fetch-share": ["url", "out"],
+    "import-chatgpt-share": ["url", "out"],
     viewer: ["archive", "out"],
     "ai-plan": ["archive", "provider", "model", "task", "query", "max-input-chars", "max-output-tokens"],
     "ai-run": ["archive", "provider", "model", "task", "query", "max-input-chars", "max-output-tokens", "consent", "out", "allow-remote", "allow-local-ai"],

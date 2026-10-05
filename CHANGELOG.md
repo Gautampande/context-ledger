@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0 — 2026-10-04
+
+Phase 1 completion release.
+
+- Adds a narrow, dependency-free `import-chatgpt-share` path for supported public `chatgpt.com/share/...` pages. It fetches without credentials, cookies, referrers, scripts, or browser automation; parses only recognized visible `user`/`assistant` message containers; and fails closed on malformed content and visible non-text artifacts.
+- Adds immutable `aicx/0.3` shared-link capture metadata, including provider, capture method, visible-snapshot completeness, unavailable hidden state, and SHA-256 digests of the source URL and fetched HTML. The bearer-style source URL itself is not stored in the archive.
+- Adds owned/sanitized provider fixtures and end-to-end tests for visible order and boundaries, Markdown-like text, code, table text, links, Unicode, empty messages, duplicate-looking messages, missing metadata, malformed pages, revoked links, annotations/pins, deterministic search, integrity, and cross-directory reopening.
+- Documents that the v1 portable format is the canonical JSON file `archive.aicx.json`; it is not a ZIP container. A multi-file `.aicx` container remains a possible future format.
+
 ## 1.0.0 — 2026-10-04
 
 First Git-source launch candidate.

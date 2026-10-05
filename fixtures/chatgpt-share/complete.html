@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8"><title>Auth design discussion | ChatGPT</title></head>
+  <body>
+    <main>
+      <article data-message-author-role="user">
+        <p>Design the login flow.</p>
+        <p>Preserve this link: <a href="https://example.test/spec">OAuth specification</a>.</p>
+      </article>
+      <article data-message-author-role="assistant">
+        <p>Use <strong>OAuth 2.1 with PKCE</strong>.</p>
+        <pre><code class="language-js">const verifier = createVerifier();
+  await beginAuthorization(verifier);</code></pre>
+        <table><thead><tr><th>Choice</th><th>Reason</th></tr></thead><tbody><tr><td>PKCE</td><td>Protects the code exchange</td></tr></tbody></table>
+      </article>
+      <div data-message-author-role="user"><p>What about emoji and duplicate text? 🔐</p></div>
+      <div data-message-author-role="assistant"><p>Duplicate text? 🔐</p></div>
+      <article data-message-author-role="assistant"><p>Duplicate text? 🔐</p></article>
+      <article data-message-author-role="user"></article>
+    </main>
+  </body>
+</html>

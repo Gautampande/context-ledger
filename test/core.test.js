@@ -1,13 +1,17 @@
 import assert from "node:assert/strict";
+import { copyFile, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { test } from "node:test";
-import { createArchiveFromMarkdown, createArchiveFromNormalizedImport, validateArchive } from "../src/lib/archive.js";
+import { addAnnotation, createArchiveFromMarkdown, createArchiveFromNormalizedImport, readAnnotations, readArchive, validateArchive } from "../src/lib/archive.js";
 import { createAiPlan, invokeAiPlan, validateAiPlan } from "../src/lib/ai.js";
+import { importChatGptSharedConversation, parseChatGptSharedHtml } from "../src/lib/chatgpt-share.js";
 import { buildContinuationPacket, expandEvidenceWindow } from "../src/lib/context.js";
 import { decryptArchive, encryptArchive } from "../src/lib/crypto-envelope.js";
 import { SecurityError, UsageError } from "../src/lib/errors.js";
 import { resolveOutputPath } from "../src/lib/fs-safe.js";
 import { sha256Text } from "../src/lib/hash.js";
-import { assertIndexMatchesArchive, buildInvertedIndex, searchInvertedIndex, validateInvertedIndex } from "../src/lib/inverted-index.js";
+import { assertIndexMatchesArchive, buildInvertedIndex, readInvertedIndex, searchInvertedIndex, validateInvertedIndex, verifyInvertedIndex } from "../src/lib/inverted-index.js";
 import { parseNormalizedImport } from "../src/lib/normalized-import.js";
 import { buildProjectHandoff, canonicalArchiveSha256, createProject, addProjectEdge, validateProject, verifyProject } from "../src/lib/project-graph.js";
 import { parsePluginRegistry } from "../src/lib/plugin-registry.js";
@@ -17,6 +21,7 @@ import { renderStaticViewer } from "../src/lib/viewer.js";
 import { ConversationRecorder } from "../src/sdk/recorder.js";
 
 const transcript = "# Demo\n\n## User\n\nUse PKCE.\n\n## Assistant\n\nPKCE is the decision.\n";
+const ROOT_DIRECTORY = process.cwd();
 
 test("creates an exact transcript record and ordered message events", () => {
   const archive = createArchiveFromMarkdown(transcript, { sourceName: "demo.md" });
@@ -324,4 +329,119 @@ test("recorder enforces an aggregate conversation byte limit", () => {
   const megabyte = "x".repeat(1024 * 1024);
   for (let index = 0; index < 4; index += 1) recorder.record({ role: "user", content: megabyte });
   assert.throws(() => recorder.record({ role: "assistant", content: "one byte too far" }), SecurityError);
+});
+
+async function fixture(name) {
+  return readFile(path.join(ROOT_DIRECTORY, "fixtures", "chatgpt-share", name), "utf8");
+}
+
+test("ChatGPT public-share parser preserves visible order, boundaries, code, tables, links, Unicode, empty messages, and duplicates", async () => {
+  const parsed = parseChatGptSharedHtml(await fixture("complete.html"));
+  assert.equal(parsed.parser, "chatgpt-share-dom/0.1");
+  assert.equal(parsed.document.title, "Auth design discussion");
+  assert.deepEqual(parsed.document.messages.map((message) => message.role), ["user", "assistant", "user", "assistant", "assistant", "user"]);
+  assert.equal(parsed.document.messages.length, 6);
+  assert.match(parsed.document.messages[0].content, /OAuth specification/u);
+  assert.match(parsed.document.messages[1].content, /```\nconst verifier = createVerifier\(\);\n  await beginAuthorization\(verifier\);\n```/u);
+  assert.match(parsed.document.messages[1].content, /Choice\tReason/u);
+  assert.match(parsed.document.messages[2].content, /🔐/u);
+  assert.equal(parsed.document.messages[3].content, parsed.document.messages[4].content);
+  assert.equal(parsed.document.messages[5].content, "");
+  assert.deepEqual(parsed.limitations.unavailable, ["hidden prompts", "internal reasoning", "tool state", "private files", "unsupported visible artifacts"]);
+});
+
+test("ChatGPT public-share parser fails closed for malformed pages and unsupported visible artifacts", async () => {
+  const artifact = await fixture("unsupported-artifact.html");
+  const malformed = await fixture("malformed.html");
+  assert.throws(() => parseChatGptSharedHtml(artifact), SecurityError);
+  assert.throws(() => parseChatGptSharedHtml(malformed), SecurityError);
+  assert.throws(() => parseChatGptSharedHtml("<html><body><p>No message containers</p></body></html>"), SecurityError);
+});
+
+test("ChatGPT public-share parser handles a long conversation and missing title metadata without merging turns", () => {
+  const messageCount = 240;
+  const page = ["<!doctype html><html><body>"];
+  for (let index = 0; index < messageCount; index += 1) {
+    const role = index % 2 === 0 ? "user" : "assistant";
+    page.push(`<article data-message-author-role="${role}"><p>turn ${index}</p></article>`);
+  }
+  page.push("</body></html>");
+  const parsed = parseChatGptSharedHtml(page.join(""));
+  assert.equal(parsed.document.title, "ChatGPT shared conversation");
+  assert.equal(parsed.document.messages.length, messageCount);
+  assert.deepEqual(parsed.document.messages.map((message) => message.content), Array.from({ length: messageCount }, (_, index) => `turn ${index}`));
+});
+
+test("ChatGPT public-share import completes the no-AI end-to-end workflow and remains portable", { concurrency: false }, async () => {
+  const html = await fixture("complete.html");
+  const testDirectory = await mkdtemp(path.join(os.tmpdir(), "context-ledger-share-"));
+  const originalDirectory = process.cwd();
+  let request;
+  try {
+    process.chdir(testDirectory);
+    const imported = await importChatGptSharedConversation(
+      "https://chatgpt.com/share/11111111-1111-4111-8111-111111111111",
+      "archive-output",
+      {
+        fetchImpl: async (url, init) => {
+          request = { url: String(url), init };
+          return new Response(html, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } });
+        },
+      },
+    );
+    assert.equal(request.url, "https://chatgpt.com/share/11111111-1111-4111-8111-111111111111");
+    assert.equal(request.init.credentials, "omit");
+    assert.equal(request.init.redirect, "manual");
+    assert.equal(request.init.referrerPolicy, "no-referrer");
+    assert.equal(imported.archive.capture.provider, "chatgpt");
+    assert.equal(imported.archive.capture.capture_method, "public_shared_link");
+    assert.equal(imported.archive.capture.completeness, "visible_snapshot");
+    assert.equal(imported.archive.capture.hidden_state_available, false);
+    assert.equal(imported.archive.capture.source_url_sha256.length, 64);
+    assert.equal(imported.archive.capture.source_html_sha256.length, 64);
+    assert.doesNotMatch(JSON.stringify(imported.archive), /chatgpt\.com\/share/u);
+    assert.doesNotThrow(() => validateArchive(imported.archive));
+    assert.match(imported.archive.transcript.content, /const verifier = createVerifier/u);
+    assert.deepEqual(imported.archive.events.map((event) => event.content), imported.archive.normalizedSource.messages.map((message) => message.content));
+
+    const verified = await verifyInvertedIndex(imported.bundle.archive, imported.archive);
+    const search = searchInvertedIndex(imported.archive, verified, "PKCE");
+    assert.equal(search.length, 1);
+    const annotationPath = await addAnnotation(imported.bundle.archive, imported.archive, {
+      eventId: imported.archive.events[1].id,
+      kind: "pin",
+      note: "Use this decision when continuing.",
+    });
+    assert.match(annotationPath, /\.annotations\.json$/u);
+    const annotations = await readAnnotations(imported.bundle.archive, imported.archive);
+    assert.equal(annotations.items[0].kind, "pin");
+    const continuation = buildContinuationPacket(imported.archive, annotations, [imported.archive.events[1].id]);
+    assert.match(continuation, /Use this decision when continuing/u);
+    assert.match(continuation, new RegExp(imported.archive.events[1].id, "u"));
+
+    const portableDirectory = "portable-copy";
+    await mkdir(portableDirectory, { recursive: true });
+    await copyFile(imported.bundle.archive, path.join(portableDirectory, "conversation.aicx.json"));
+    await copyFile(imported.index.path, path.join(portableDirectory, "conversation.aicx.json.index.json"));
+    const portableArchivePath = path.join(portableDirectory, "conversation.aicx.json");
+    const reopened = await readArchive(portableArchivePath);
+    const reopenedIndex = await readInvertedIndex(portableArchivePath, reopened);
+    assert.ok(reopenedIndex);
+    assert.equal(searchInvertedIndex(reopened, reopenedIndex, "OAuth").length, 2);
+    assert.match(buildContinuationPacket(reopened, { items: [] }), /Auth design discussion/u);
+  } finally {
+    process.chdir(originalDirectory);
+    await rm(testDirectory, { recursive: true, force: true });
+  }
+});
+
+test("ChatGPT public-share import reports a revoked or malformed remote page without producing an archive", async () => {
+  await assert.rejects(
+    () => importChatGptSharedConversation(
+      "https://chatgpt.com/share/11111111-1111-4111-8111-111111111111",
+      "unused-output",
+      { fetchImpl: async () => new Response("Not found", { status: 410, headers: { "content-type": "text/html" } }) },
+    ),
+    SecurityError,
+  );
 });

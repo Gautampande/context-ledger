@@ -1,4 +1,4 @@
-# Context Ledger 1.0 threat model
+# Context Ledger 1.1 threat model
 
 ## Assets
 
@@ -24,7 +24,7 @@
 - Outputs must be new relative paths under the working directory; path traversal and existing symbolic links are rejected. Created directories/files request `0700`/`0600` permissions where the platform honors them.
 - Continuation packets have fixed evidence-count and source-byte bounds. Terminal output is JSON-encoded.
 - Viewer output escapes content, strips display controls, has no scripts or external resources, and declares a deny-by-default Content Security Policy.
-- Shared links require HTTPS and an explicit host/path allowlist; requests omit cookies, credentials, referrers, and automatic redirects. Every redirect is checked manually. Only bounded HTML is acquired; no browser, scripts, or assets are used.
+- Shared links require HTTPS and an explicit host/path allowlist; requests omit cookies, credentials, referrers, and automatic redirects. Every redirect is checked manually. Only bounded UTF-8 HTML is acquired; no browser, scripts, or assets are used. The ChatGPT public-share adapter parses only its recognized visible message containers, rejects unsafe controls and unsupported visible artifacts, limits message count, stores hashes rather than the share URL, and never treats hidden provider state as captured.
 - BYOK AI creates a local plan before a call. The consent ID binds archive hash, exact prompt, task, provider, model, and limits. Execution recomputes and verifies it, requires an explicit remote/local flag, uses a fixed endpoint for each provider, disables automatic redirects, bounds response data, and records only a result digest plus untrusted text. Keys come only from named environment variables, never CLI arguments or output files.
 - Project graphs allowlist node/edge/claim types, use workspace-relative paths, and record archive/file hashes or a conservative Git loose `HEAD`. `project-verify` re-reads and checks these bindings.
 - The recorder SDK makes no network requests. The plugin registry contains manifests only; the CLI does not install, import, or execute plugin code.
@@ -33,7 +33,8 @@
 ## Deliberate limitations
 
 - “Exact” means exact to the imported local input and its deterministic event projection. It does not prove the input fully represented a provider conversation.
-- Provider-specific share-page parsing is withheld until it has a public contract, sanitized fixtures, and exactness/security tests. The current snapshot command is not an importer.
+- The built-in ChatGPT public-share adapter is a narrow, versioned visible-DOM parser with sanitized fixtures and ordering/fidelity tests. It can fail when ChatGPT changes that DOM; this is intentional. `fetch-share` remains an opaque snapshot command, and no ChatGPT account export, private chat, Claude, or Gemini parser is implemented.
+- Visible HTML text is not equivalent to a provider export. An accepted `visible_snapshot` archive does not prove completeness, identity, provenance, or access to hidden prompts, internal reasoning, tool state, files, variants, or history outside the fetched public page.
 - SHA-256 detects accidental or unauthenticated modification; it is not a signature, identity proof, or protection from a writer who can change both data and hashes. Signing is not implemented.
 - The local filesystem checks reduce accidental traversal and symlink use but cannot completely eliminate TOCTOU attacks by a concurrent privileged local attacker. Keep the workspace private and use OS-level protections.
 - Encryption does not hide filenames, backups, shell history outside this tool, or an active compromised session. Passphrase entry can be observed on a compromised machine.

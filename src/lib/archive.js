@@ -12,13 +12,24 @@ import {
 } from "./fs-safe.js";
 import { SecurityError, UsageError } from "./errors.js";
 
-export const ARCHIVE_SCHEMA = "aicx/0.2";
-const LEGACY_ARCHIVE_SCHEMA = "aicx/0.1";
+export const ARCHIVE_SCHEMA = "aicx/0.3";
+const LEGACY_ARCHIVE_SCHEMAS = new Set(["aicx/0.1", "aicx/0.2"]);
 const NORMALIZED_IMPORT_SCHEMA = "context-ledger-import/0.1";
 const VALID_MESSAGE_ROLES = new Set(["user", "assistant", "tool", "system"]);
 const ARCHIVE_FIELDS = new Set(["schema", "archiveId", "createdAt", "title", "capture", "security", "transcript", "events", "normalizedSource"]);
 const MANUAL_CAPTURE_FIELDS = new Set(["method", "confidence", "sourceName"]);
 const NORMALIZED_CAPTURE_FIELDS = new Set(["method", "confidence", "sourceName", "sourceDocumentSha256"]);
+const SHARED_CAPTURE_FIELDS = new Set([
+  "method",
+  "confidence",
+  "provider",
+  "capture_method",
+  "completeness",
+  "hidden_state_available",
+  "source_url_sha256",
+  "source_html_sha256",
+  "parser",
+]);
 const TRANSCRIPT_FIELDS = new Set(["encoding", "byteLength", "sha256", "content"]);
 const EVENT_FIELDS = new Set(["id", "sequence", "role", "content", "contentSha256"]);
 
@@ -107,6 +118,67 @@ export function createArchiveFromNormalizedImport(document, source) {
   };
 }
 
+/**
+ * Builds a canonical archive from a provider adapter's already-normalized visible
+ * message stream. The raw share URL is deliberately not retained: public share
+ * links can act like bearer links. Its and the fetched HTML's SHA-256 digests are
+ * enough to bind the capture metadata without disclosing the URL again.
+ */
+export function createArchiveFromSharedConversation(document, source) {
+  validateNormalizedImport(document);
+  if (
+    source?.provider !== "chatgpt" ||
+    source.captureMethod !== "public_shared_link" ||
+    source.completeness !== "visible_snapshot" ||
+    source.hiddenStateAvailable !== false ||
+    !isSha256(source.sourceUrlSha256) ||
+    !isSha256(source.sourceHtmlSha256) ||
+    source.parser !== "chatgpt-share-dom/0.1"
+  ) {
+    throw new UsageError("Shared conversation capture metadata is invalid.");
+  }
+  if (document.messages.some((message) => message.role !== "user" && message.role !== "assistant")) {
+    throw new UsageError("A ChatGPT shared conversation may contain only user and assistant messages.");
+  }
+  const transcript = renderNormalizedTranscript(document.title, document.messages);
+  if (Buffer.byteLength(transcript, "utf8") > 4 * 1024 * 1024) {
+    throw new UsageError("Shared conversation exceeds the 4 MiB safety limit.");
+  }
+  return {
+    schema: ARCHIVE_SCHEMA,
+    archiveId: `arc_${randomUUID()}`,
+    createdAt: new Date().toISOString(),
+    title: document.title,
+    capture: {
+      method: "public_shared_link",
+      confidence: "visible_snapshot",
+      provider: "chatgpt",
+      capture_method: "public_shared_link",
+      completeness: "visible_snapshot",
+      hidden_state_available: false,
+      source_url_sha256: source.sourceUrlSha256,
+      source_html_sha256: source.sourceHtmlSha256,
+      parser: source.parser,
+    },
+    security: {
+      untrustedContent: true,
+      aiProcessing: "not-used",
+    },
+    normalizedSource: {
+      schema: NORMALIZED_IMPORT_SCHEMA,
+      title: document.title,
+      messages: document.messages,
+    },
+    transcript: {
+      encoding: "utf-8",
+      byteLength: Buffer.byteLength(transcript, "utf8"),
+      sha256: sha256Text(transcript),
+      content: transcript,
+    },
+    events: eventsFromMessages(document.messages),
+  };
+}
+
 export function validateNormalizedImport(value) {
   assertPlainObject(value, "Normalized import");
   const keys = Object.keys(value);
@@ -138,7 +210,7 @@ export function validateNormalizedImport(value) {
 
 export function validateArchive(value) {
   assertPlainObject(value, "Archive");
-  if (![ARCHIVE_SCHEMA, LEGACY_ARCHIVE_SCHEMA].includes(value.schema)) throw new SecurityError("Unsupported archive schema.");
+  if (value.schema !== ARCHIVE_SCHEMA && !LEGACY_ARCHIVE_SCHEMAS.has(value.schema)) throw new SecurityError("Unsupported archive schema.");
   assertOnlyFields(value, ARCHIVE_FIELDS, "Archive");
   if (typeof value.archiveId !== "string" || !/^arc_[0-9a-f-]{36}$/u.test(value.archiveId)) {
     throw new SecurityError("Archive ID is invalid.");
@@ -162,14 +234,30 @@ export function validateArchive(value) {
   }
   assertPlainObject(value.capture, "Archive capture metadata");
   const isManual = value.capture.method === "manual" && value.capture.confidence === "manual";
-  const isNormalized = value.schema === ARCHIVE_SCHEMA && value.capture.method === "normalized_json" && value.capture.confidence === "normalized_json";
-  if (!isManual && !isNormalized) throw new SecurityError("Archive capture metadata is invalid.");
-  assertOnlyFields(value.capture, isNormalized ? NORMALIZED_CAPTURE_FIELDS : MANUAL_CAPTURE_FIELDS, "Archive capture metadata");
+  const isNormalized = value.schema !== "aicx/0.1" && value.capture.method === "normalized_json" && value.capture.confidence === "normalized_json";
+  const isShared = value.schema === ARCHIVE_SCHEMA && value.capture.method === "public_shared_link" && value.capture.confidence === "visible_snapshot";
+  if (!isManual && !isNormalized && !isShared) throw new SecurityError("Archive capture metadata is invalid.");
+  assertOnlyFields(
+    value.capture,
+    isShared ? SHARED_CAPTURE_FIELDS : isNormalized ? NORMALIZED_CAPTURE_FIELDS : MANUAL_CAPTURE_FIELDS,
+    "Archive capture metadata",
+  );
   if (typeof value.capture.sourceName !== "undefined" && (typeof value.capture.sourceName !== "string" || value.capture.sourceName.length > 160 || /[\u0000-\u001f\u007f]/u.test(value.capture.sourceName))) {
     throw new SecurityError("Archive source name is invalid.");
   }
   if (isNormalized && (typeof value.capture.sourceDocumentSha256 !== "string" || !/^[0-9a-f]{64}$/u.test(value.capture.sourceDocumentSha256))) {
     throw new SecurityError("Normalized archive source hash is invalid.");
+  }
+  if (isShared && (
+    value.capture.provider !== "chatgpt" ||
+    value.capture.capture_method !== "public_shared_link" ||
+    value.capture.completeness !== "visible_snapshot" ||
+    value.capture.hidden_state_available !== false ||
+    !isSha256(value.capture.source_url_sha256) ||
+    !isSha256(value.capture.source_html_sha256) ||
+    value.capture.parser !== "chatgpt-share-dom/0.1"
+  )) {
+    throw new SecurityError("Shared archive capture metadata is invalid.");
   }
   assertPlainObject(value.security, "Archive security metadata");
   assertOnlyFields(value.security, new Set(["untrustedContent", "aiProcessing"]), "Archive security metadata");
@@ -207,6 +295,9 @@ export function validateArchive(value) {
     expectedEvents = eventsFromMarkdown(value.transcript.content);
   } else {
     validateNormalizedImport(value.normalizedSource);
+    if (isShared && value.normalizedSource.messages.some((message) => message.role !== "user" && message.role !== "assistant")) {
+      throw new SecurityError("Shared archive contains an unsupported message role.");
+    }
     if (value.title !== value.normalizedSource.title || value.transcript.content !== renderNormalizedTranscript(value.normalizedSource.title, value.normalizedSource.messages)) {
       throw new SecurityError("Normalized archive does not match its canonical transcript.");
     }
@@ -216,6 +307,10 @@ export function validateArchive(value) {
     throw new SecurityError("Archive event projection does not match the immutable transcript.");
   }
   return value;
+}
+
+function isSha256(value) {
+  return typeof value === "string" && /^[0-9a-f]{64}$/u.test(value);
 }
 
 export async function readArchive(archivePath) {
@@ -288,7 +383,7 @@ function validateAnnotations(value, archive) {
     if (
       typeof item.eventId !== "string" ||
       !eventIds.has(item.eventId) ||
-      !["decision", "important", "question"].includes(item.kind) ||
+      !["decision", "important", "question", "pin"].includes(item.kind) ||
       typeof item.note !== "string" ||
       item.note.length > 2_000 ||
       typeof item.createdAt !== "string" ||
@@ -319,8 +414,8 @@ export async function addAnnotation(archivePath, archive, annotation) {
   if (!archive.events.some((event) => event.id === annotation.eventId)) {
     throw new UsageError("Annotation event ID is not in this archive.");
   }
-  if (!['decision', 'important', 'question'].includes(annotation.kind)) {
-    throw new UsageError("Annotation kind must be decision, important, or question.");
+  if (!['decision', 'important', 'question', 'pin'].includes(annotation.kind)) {
+    throw new UsageError("Annotation kind must be decision, important, question, or pin.");
   }
   if (typeof annotation.note !== "string" || annotation.note.length === 0 || annotation.note.length > 2_000) {
     throw new UsageError("Annotation note must contain 1 to 2,000 characters.");

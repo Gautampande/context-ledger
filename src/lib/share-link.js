@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { writeNewFile } from "./fs-safe.js";
+import { decodeUtf8, writeNewFile } from "./fs-safe.js";
 import { SecurityError, UsageError } from "./errors.js";
 
 const MAX_HTML_BYTES = 5 * 1024 * 1024;
@@ -61,13 +61,19 @@ async function readBoundedBody(response) {
   return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)));
 }
 
-export async function acquireSharedSnapshot(shareUrl, outputDirectory) {
+/**
+ * Fetches only an allowlisted public share page. The returned content remains
+ * untrusted; callers must use a provider-specific parser before treating it as
+ * conversation text. URLs are hashed in returned metadata and never persisted.
+ */
+export async function fetchApprovedSharedPage(shareUrl, { fetchImpl = fetch } = {}) {
+  if (typeof fetchImpl !== "function") throw new UsageError("A fetch implementation is required.");
   let { parsed: current, provider } = inspectShareUrl(shareUrl);
   const aborter = new AbortController();
   const timeout = setTimeout(() => aborter.abort(), TIMEOUT_MS);
   try {
     for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
-      const response = await fetch(current, {
+      const response = await fetchImpl(current, {
         method: "GET",
         redirect: "manual",
         credentials: "omit",
@@ -75,7 +81,7 @@ export async function acquireSharedSnapshot(shareUrl, outputDirectory) {
         signal: aborter.signal,
         headers: {
           Accept: "text/html,application/xhtml+xml",
-          "User-Agent": "ContextLedger/0.1 public-snapshot",
+          "User-Agent": "ContextLedger/1.1 public-snapshot",
         },
       });
       if (response.status >= 300 && response.status < 400) {
@@ -90,21 +96,22 @@ export async function acquireSharedSnapshot(shareUrl, outputDirectory) {
         throw new SecurityError("Shared page did not return HTML.");
       }
       const body = await readBoundedBody(response);
+      let html;
+      try {
+        html = decodeUtf8(body, "Shared page");
+      } catch (error) {
+        if (error instanceof SecurityError) throw error;
+        throw new SecurityError("Shared page is not valid UTF-8 HTML.");
+      }
       const digest = createHash("sha256").update(shareUrl).digest("hex");
       const pageHash = createHash("sha256").update(body).digest("hex");
-      const base = `${outputDirectory}/snapshot-${pageHash.slice(0, 16)}`;
-      await writeNewFile(`${base}.html`, body);
-      await writeNewFile(`${base}.json`, `${JSON.stringify({
-        schema: "shared-snapshot/0.1",
+      return {
         provider,
-        capturedAt: new Date().toISOString(),
+        html,
         sourceUrlSha256: digest,
-        pageSha256: pageHash,
+        sourceHtmlSha256: pageHash,
         byteLength: body.byteLength,
-        parser: "none",
-        warning: "Opaque untrusted HTML snapshot. It has not been parsed into a conversation transcript.",
-      }, null, 2)}\n`);
-      return { provider, htmlPath: `${base}.html`, metadataPath: `${base}.json`, pageSha256: pageHash };
+      };
     }
     throw new SecurityError("Shared page exceeded the redirect limit.");
   } catch (error) {
@@ -114,4 +121,21 @@ export async function acquireSharedSnapshot(shareUrl, outputDirectory) {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export async function acquireSharedSnapshot(shareUrl, outputDirectory, options = {}) {
+  const page = await fetchApprovedSharedPage(shareUrl, options);
+  const base = `${outputDirectory}/snapshot-${page.sourceHtmlSha256.slice(0, 16)}`;
+  await writeNewFile(`${base}.html`, page.html);
+  await writeNewFile(`${base}.json`, `${JSON.stringify({
+    schema: "shared-snapshot/0.1",
+    provider: page.provider,
+    capturedAt: new Date().toISOString(),
+    sourceUrlSha256: page.sourceUrlSha256,
+    pageSha256: page.sourceHtmlSha256,
+    byteLength: page.byteLength,
+    parser: "none",
+    warning: "Opaque untrusted HTML snapshot. It has not been parsed into a conversation transcript.",
+  }, null, 2)}\n`);
+  return { provider: page.provider, htmlPath: `${base}.html`, metadataPath: `${base}.json`, pageSha256: page.sourceHtmlSha256 };
 }
