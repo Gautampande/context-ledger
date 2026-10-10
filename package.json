@@ -1,6 +1,6 @@
 {
   "name": "context-ledger",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Local-first AI conversation archives with zero-token defaults and optional BYOK analysis.",
   "private": true,
   "type": "module",

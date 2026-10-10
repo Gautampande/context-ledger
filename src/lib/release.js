@@ -28,13 +28,13 @@ export async function checkReleaseReadiness() {
   const packageJson = parseJson(await readSafeUtf8("package.json", 128 * 1024), "package.json");
   if (
     packageJson.name !== "context-ledger" ||
-    packageJson.version !== "1.1.0" ||
+    packageJson.version !== "1.1.1" ||
     packageJson.type !== "module" ||
     packageJson.license !== "Apache-2.0" ||
     !packageJson.private ||
     (packageJson.dependencies && Object.keys(packageJson.dependencies).length > 0) ||
     (packageJson.optionalDependencies && Object.keys(packageJson.optionalDependencies).length > 0)
-  ) throw new SecurityError("package.json does not meet the Context Ledger 1.1 Git-release policy.");
+  ) throw new SecurityError("package.json does not meet the Context Ledger 1.1.1 Git-release policy.");
 
   for (const filename of REQUIRED_TEXT_FILES) {
     const text = await readSafeUtf8(filename, 512 * 1024);

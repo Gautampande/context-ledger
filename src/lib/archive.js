@@ -30,6 +30,7 @@ const SHARED_CAPTURE_FIELDS = new Set([
   "source_html_sha256",
   "parser",
 ]);
+const SHARED_PARSERS = new Set(["chatgpt-share-dom/0.1", "chatgpt-share-react-router/0.2", "chatgpt-share-react-router/0.3"]);
 const TRANSCRIPT_FIELDS = new Set(["encoding", "byteLength", "sha256", "content"]);
 const EVENT_FIELDS = new Set(["id", "sequence", "role", "content", "contentSha256"]);
 
@@ -133,7 +134,7 @@ export function createArchiveFromSharedConversation(document, source) {
     source.hiddenStateAvailable !== false ||
     !isSha256(source.sourceUrlSha256) ||
     !isSha256(source.sourceHtmlSha256) ||
-    source.parser !== "chatgpt-share-dom/0.1"
+    !SHARED_PARSERS.has(source.parser)
   ) {
     throw new UsageError("Shared conversation capture metadata is invalid.");
   }
@@ -255,7 +256,7 @@ export function validateArchive(value) {
     value.capture.hidden_state_available !== false ||
     !isSha256(value.capture.source_url_sha256) ||
     !isSha256(value.capture.source_html_sha256) ||
-    value.capture.parser !== "chatgpt-share-dom/0.1"
+    !SHARED_PARSERS.has(value.capture.parser)
   )) {
     throw new SecurityError("Shared archive capture metadata is invalid.");
   }

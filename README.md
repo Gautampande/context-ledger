@@ -2,14 +2,14 @@
 
 `Context Ledger` is a local-first, Git-hosted tool for retaining and handing off one important AI conversation at a time. It preserves the imported transcript, builds a deterministic local index, and creates bounded continuation packets. Related-archive project graph support is separate and optional.
 
-It is deliberately **not** a universal ChatGPT/Claude/Gemini scraper. Version 1.1 includes one narrow adapter for a supported public ChatGPT share-page DOM. It preserves only the visible text messages that the parser can verify and fails closed on unsupported visible artifacts. It is not a claim of full account-export fidelity.
+It is deliberately **not** a universal ChatGPT/Claude/Gemini scraper. Version 1.1.1 includes one narrow adapter for the supported public ChatGPT shared-page React Router stream. It preserves only verified visible text messages and fails closed on unsupported representations or visible artifacts. It is not a claim of full account-export fidelity.
 
-## What ships in 1.1
+## What ships in 1.1.1
 
 - Exact UTF-8 Markdown import and strict normalized-JSON import.
 - Portable `aicx/0.3` JSON archive: immutable transcript, deterministic event projection, SHA-256 integrity fields, and readable companion files. Older `aicx/0.1` and `aicx/0.2` archives remain readable.
 - Token-free local inverted-index search, annotations, static offline viewer, and evidence-bounded continuation packets.
-- `import-chatgpt-share` for the supported `https://chatgpt.com/share/...` visible-DOM surface. It creates an archive and index in one command, with no AI API key.
+- `import-chatgpt-share` for the supported `https://chatgpt.com/share/...` React Router stream surface. It creates an archive and index in one command, with no AI API key.
 - Optional AES-256-GCM envelope encryption with scrypt-derived keys.
 - A constrained shared-link snapshot boundary: HTTPS allowlist, no cookies, no credentials, validated redirects, no scripts or asset downloads.
 - Optional bring-your-own-key AI summaries, extraction, and semantic retrieval. They are off by default and use no key or tokens until the user explicitly approves a plan.
@@ -100,7 +100,7 @@ node src/cli.js import-chatgpt-share --url 'https://chatgpt.com/share/...' --out
 node src/cli.js plugins
 ```
 
-`fetch-share` remains an acquisition boundary, not a parser: it stores raw allowed HTML with a digest of the URL and does not preserve the share URL itself. `import-chatgpt-share` is the one built-in provider importer. It accepts only a public `chatgpt.com/share/...` URL, recognizes only the adapter's supported visible `user`/`assistant` containers, and rejects malformed pages or visible images, files, audio, video, canvas, SVG, and other unsupported artifacts rather than silently omitting them.
+`fetch-share` remains an acquisition boundary, not a parser: it stores raw allowed HTML with a digest of the URL and does not preserve the share URL itself. `import-chatgpt-share` is the one built-in provider importer. It accepts only a public `chatgpt.com/share/...` URL, decodes the supported embedded React Router `linear_conversation` stream without executing page code, and recognizes only verified visible text `user`/`assistant` messages. It rejects malformed pages, unknown message representations, and non-text artifacts rather than silently omitting them.
 
 The resulting capture metadata says `provider: "chatgpt"`, `capture_method: "public_shared_link"`, `completeness: "visible_snapshot"`, and `hidden_state_available: false`. It also records hashes of the source URL and fetched HTML, not the URL itself. Hidden prompts, internal reasoning, tool state, private files, unrendered variants, and provider history outside the fetched public snapshot are unavailable or unknown. See [the adapter contract](docs/adapter-contract.md) and [Phase 1 acceptance criteria](docs/phase1-acceptance.md).
 

@@ -1,12 +1,12 @@
 # Provider adapter contract
 
-Context Ledger 1.1 ships one deliberately narrow public-share adapter: `chatgpt-share-dom/0.1`. A provider page, export format, or undocumented API is never treated as a stable contract by assumption. The adapter is supported only when the fetched public `https://chatgpt.com/share/...` HTML contains the visible message containers it recognizes.
+Context Ledger 1.1.1 ships one deliberately narrow public-share adapter: `chatgpt-share-react-router/0.3`. A provider page, export format, or undocumented API is never treated as a stable contract by assumption. The adapter is supported only when the fetched public `https://chatgpt.com/share/...` HTML contains the versioned embedded stream it recognizes.
 
 ## Built-in ChatGPT public-share adapter
 
 `import-chatgpt-share` uses a bounded HTTPS GET with credentials omitted, a no-referrer policy, manually checked redirects, a 10-second timeout, and a 5 MiB HTML limit. It does not open a browser, execute page JavaScript, access an account, use provider APIs, download assets, or send an AI request.
 
-The local parser accepts only visible `article` or `div` message containers marked with `data-message-author-role="user"` or `data-message-author-role="assistant"`. It preserves their order and normalizes their visible text into the strict normalized-message contract. Code blocks are emitted as fenced text; displayed link text and table cells are retained. It fails rather than creating a partial transcript if it encounters malformed containers, unsupported roles, unsafe control characters, or visible images/files/audio/video/canvas/SVG/embedded content.
+The local parser first decodes the provider's embedded React Router stream with `JSON.parse`; it never evaluates the page script. It accepts only one `linear_conversation` graph, uses its explicit order, and captures only `user` and `assistant` messages whose `content_type` is `text` with string parts. That `parts` representation is the current provider surface for visible text. When an older user `message_source` string is also present, it must exactly agree with `parts`; a conflict fails closed. Provider context, hidden, and redacted records are excluded. It also excludes the observed exact English custom-instructions placeholder only when it lacks the normal context markers; unknown non-text or structurally invalid records fail closed. A legacy static DOM path remains only for previously owned fixtures, not as the current provider contract.
 
 An accepted archive records:
 

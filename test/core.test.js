@@ -335,6 +335,60 @@ async function fixture(name) {
   return readFile(path.join(ROOT_DIRECTORY, "fixtures", "chatgpt-share", name), "utf8");
 }
 
+function flattenReactRouterValue(root) {
+  const table = [];
+  const objects = new Map();
+  function store(value) {
+    if (value === null || typeof value !== "object") {
+      table.push(value);
+      return table.length - 1;
+    }
+    if (objects.has(value)) return objects.get(value);
+    const index = table.length;
+    table.push(null);
+    objects.set(value, index);
+    if (Array.isArray(value)) {
+      table[index] = value.map((entry) => store(entry));
+      return index;
+    }
+    const record = {};
+    for (const [key, child] of Object.entries(value)) {
+      record[`_${store(key)}`] = store(child);
+    }
+    table[index] = record;
+    return index;
+  }
+  assert.equal(store(root), 0);
+  return table;
+}
+
+function routerMessage({ id, role, text, time, internal = false, contentType = "text" }) {
+  return {
+    id,
+    author: { role },
+    content: { content_type: contentType, parts: [text] },
+    ...(role === "user" && !internal ? { message_source: text } : {}),
+    ...(internal ? { is_user_system_message: false, user_context_message_data: null } : {}),
+    create_time: time,
+  };
+}
+
+function reactRouterSharePage(messages, title = "React Router shared chat") {
+  const root = {
+    loaderData: {
+      "routes/share.$shareId.($action)": {
+        serverResponse: {
+          data: {
+            linear_conversation: messages.map((message) => ({ message })),
+          },
+        },
+      },
+    },
+  };
+  const payload = `${JSON.stringify(flattenReactRouterValue(root))}\n`;
+  return `<!doctype html><html><head><title>${title} | ChatGPT</title></head><body><script>window.__reactRouterContext.streamController.enqueue(${JSON.stringify(payload)});</script></body></html>`;
+}
+
 test("ChatGPT public-share parser preserves visible order, boundaries, code, tables, links, Unicode, empty messages, and duplicates", async () => {
   const parsed = parseChatGptSharedHtml(await fixture("complete.html"));
   assert.equal(parsed.parser, "chatgpt-share-dom/0.1");
@@ -348,6 +402,76 @@ test("ChatGPT public-share parser preserves visible order, boundaries, code, tab
   assert.equal(parsed.document.messages[3].content, parsed.document.messages[4].content);
   assert.equal(parsed.document.messages[5].content, "");
   assert.deepEqual(parsed.limitations.unavailable, ["hidden prompts", "internal reasoning", "tool state", "private files", "unsupported visible artifacts"]);
+});
+
+test("ChatGPT React Router stream parser preserves ordered visible messages and rejects internal pseudo-messages", () => {
+  const page = reactRouterSharePage([
+    routerMessage({ id: "user-1", role: "user", text: "Use OAuth with PKCE.\n\n```js\nconst verifier = 'first';\n```", time: 10 }),
+    routerMessage({ id: "assistant-1", role: "assistant", text: "PKCE protects the code exchange. 🔐", time: 11 }),
+    routerMessage({ id: "context-1", role: "user", text: "Original custom instructions no longer available", time: 12, internal: true }),
+    routerMessage({ id: "user-2", role: "user", text: "What is the fallback?", time: 13 }),
+    routerMessage({ id: "assistant-2", role: "assistant", text: "Fail closed rather than silently omit content.", time: 14 }),
+  ]);
+  const parsed = parseChatGptSharedHtml(page);
+  assert.equal(parsed.parser, "chatgpt-share-react-router/0.3");
+  assert.equal(parsed.document.title, "React Router shared chat");
+  assert.deepEqual(parsed.document.messages, [
+    { role: "user", content: "Use OAuth with PKCE.\n\n```js\nconst verifier = 'first';\n```" },
+    { role: "assistant", content: "PKCE protects the code exchange. 🔐" },
+    { role: "user", content: "What is the fallback?" },
+    { role: "assistant", content: "Fail closed rather than silently omit content." },
+  ]);
+});
+
+test("ChatGPT React Router stream parser excludes the observed source-less custom-instructions placeholder", () => {
+  const providerPseudoMessage = routerMessage({
+    id: "context-without-source",
+    role: "user",
+    text: "Original custom instructions no longer available",
+    time: 11,
+  });
+  delete providerPseudoMessage.message_source;
+  const page = reactRouterSharePage([
+    routerMessage({ id: "user-1", role: "user", text: "A real visible user turn.", time: 10 }),
+    providerPseudoMessage,
+    routerMessage({ id: "assistant-1", role: "assistant", text: "A real visible assistant turn.", time: 12 }),
+  ]);
+  const parsed = parseChatGptSharedHtml(page);
+  assert.deepEqual(parsed.document.messages, [
+    { role: "user", content: "A real visible user turn." },
+    { role: "assistant", content: "A real visible assistant turn." },
+  ]);
+});
+
+test("ChatGPT React Router stream parser rejects unsupported visible message representations", () => {
+  const page = reactRouterSharePage([
+    routerMessage({ id: "user-1", role: "user", text: "Show an image", time: 10 }),
+    routerMessage({ id: "assistant-1", role: "assistant", text: "image payload", time: 11, contentType: "multimodal_text" }),
+  ]);
+  assert.throws(() => parseChatGptSharedHtml(page), SecurityError);
+});
+
+test("ChatGPT React Router stream parser captures a current visible user turn without a message_source field", () => {
+  const currentUser = routerMessage({ id: "user-1", role: "user", text: "Current share-page representation", time: 10 });
+  delete currentUser.message_source;
+  const page = reactRouterSharePage([
+    currentUser,
+    routerMessage({ id: "assistant-1", role: "assistant", text: "A response", time: 11 }),
+  ]);
+  assert.deepEqual(parseChatGptSharedHtml(page).document.messages, [
+    { role: "user", content: "Current share-page representation" },
+    { role: "assistant", content: "A response" },
+  ]);
+});
+
+test("ChatGPT React Router stream parser rejects conflicting user text representations", () => {
+  const inconsistentUser = routerMessage({ id: "user-1", role: "user", text: "Visible text", time: 10 });
+  inconsistentUser.message_source = "Different text";
+  const page = reactRouterSharePage([
+    inconsistentUser,
+    routerMessage({ id: "assistant-1", role: "assistant", text: "A response", time: 11 }),
+  ]);
+  assert.throws(() => parseChatGptSharedHtml(page), SecurityError);
 });
 
 test("ChatGPT public-share parser fails closed for malformed pages and unsupported visible artifacts", async () => {
@@ -373,7 +497,13 @@ test("ChatGPT public-share parser handles a long conversation and missing title 
 });
 
 test("ChatGPT public-share import completes the no-AI end-to-end workflow and remains portable", { concurrency: false }, async () => {
-  const html = await fixture("complete.html");
+  const html = reactRouterSharePage([
+    routerMessage({ id: "user-1", role: "user", text: "Design OAuth with PKCE.", time: 10 }),
+    routerMessage({ id: "assistant-1", role: "assistant", text: "Use PKCE.\n\n```js\nconst verifier = createVerifier();\n```", time: 11 }),
+    routerMessage({ id: "context-1", role: "user", text: "Original custom instructions no longer available", time: 12, internal: true }),
+    routerMessage({ id: "user-2", role: "user", text: "What is the OAuth fallback?", time: 13 }),
+    routerMessage({ id: "assistant-2", role: "assistant", text: "Use a documented fallback.", time: 14 }),
+  ], "Auth design discussion");
   const testDirectory = await mkdtemp(path.join(os.tmpdir(), "context-ledger-share-"));
   const originalDirectory = process.cwd();
   let request;
@@ -405,7 +535,7 @@ test("ChatGPT public-share import completes the no-AI end-to-end workflow and re
     assert.deepEqual(imported.archive.events.map((event) => event.content), imported.archive.normalizedSource.messages.map((message) => message.content));
 
     const verified = await verifyInvertedIndex(imported.bundle.archive, imported.archive);
-    const search = searchInvertedIndex(imported.archive, verified, "PKCE");
+    const search = searchInvertedIndex(imported.archive, verified, "createVerifier");
     assert.equal(search.length, 1);
     const annotationPath = await addAnnotation(imported.bundle.archive, imported.archive, {
       eventId: imported.archive.events[1].id,

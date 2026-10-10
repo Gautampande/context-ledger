@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.1 — 2026-10-06
+
+Corrects the public ChatGPT shared-link adapter after live smoke testing.
+
+- Replaces the unproven DOM-only route with a bounded, non-executing decoder for ChatGPT's embedded React Router stream, `chatgpt-share-react-router/0.3`.
+- Reads only the provider's explicit `linear_conversation` ordering and current visible text parts; verifies an optional older user `message_source` against those parts when present; rejects conflicting text and non-text artifacts.
+- Excludes hidden/context-only records and the provider's custom-instructions pseudo-message. It never falls back to a broad string scrape of the page.
+- Adds owned serialized-stream tests covering ordered multi-turn capture, code and Unicode preservation, internal-message exclusion, unsupported artifacts, and the full archive/index/handoff portability workflow.
+
 ## 1.1.0 — 2026-10-04
 
 Phase 1 completion release.

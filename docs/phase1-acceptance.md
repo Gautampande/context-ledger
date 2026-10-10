@@ -4,7 +4,7 @@
 
 Phase 1 is complete when one supported public AI conversation can be imported into a local archive that preserves the adapter-verified visible conversation, supports deterministic local search, manual annotations/pins, integrity verification, and deterministic continuation generation—without an AI API key.
 
-The supported surface in 1.1 is the versioned `chatgpt-share-dom/0.1` adapter for public `https://chatgpt.com/share/...` pages whose fetched HTML exposes the recognized visible user/assistant containers. This is intentionally narrower than “all ChatGPT conversations.”
+The supported surface in 1.1.1 is the versioned `chatgpt-share-react-router/0.3` adapter for public `https://chatgpt.com/share/...` pages whose fetched HTML exposes the recognized `linear_conversation` stream. This is intentionally narrower than “all ChatGPT conversations.”
 
 ## Automated acceptance coverage
 
