@@ -2,11 +2,11 @@
 
 `Context Ledger` is a local-first, Git-hosted tool for retaining and handing off one important AI conversation at a time. It preserves the imported transcript, builds a deterministic local index, and creates bounded continuation packets. Related-archive project graph support is separate and optional.
 
-It is deliberately **not** a universal ChatGPT/Claude/Gemini scraper. The published `v1.1.1` baseline includes one narrow adapter for the supported public ChatGPT shared-page React Router stream. The unreleased `v1.1.2` stabilization work strengthens its failure boundaries and release evidence. It preserves only verified visible text messages and fails closed on unsupported representations or visible artifacts. It is not a claim of full account-export fidelity.
+It is deliberately **not** a universal ChatGPT/Claude/Gemini scraper. The published `v1.1.2` baseline includes one narrow adapter for the supported public ChatGPT shared-page React Router stream. The unreleased `v1.2.0` phase is collecting transparent compatibility evidence before any provider expansion. It preserves only verified visible text messages and fails closed on unsupported representations or visible artifacts. It is not a claim of full account-export fidelity.
 
 For a full technical and product handoff—including architecture, current feature boundaries, security decisions, and a ready-to-use AI collaboration prompt—read the [project guidebook](docs/project-guidebook.md).
 
-## Current capability and `v1.1.2` stabilization
+## Current capability and `v1.2.0` evidence phase
 
 - Exact UTF-8 Markdown import and strict normalized-JSON import.
 - Portable `aicx/0.3` JSON archive: immutable transcript, deterministic event projection, SHA-256 integrity fields, and readable companion files. Older `aicx/0.1` and `aicx/0.2` archives remain readable.
@@ -120,4 +120,4 @@ The release check verifies local repository metadata and documentation; it does 
 
 Read [SECURITY.md](SECURITY.md), [the threat model](docs/threat-model.md), and [CONTRIBUTING.md](CONTRIBUTING.md) before using sensitive data or adding a provider adapter.
 
-For a reproducible no-network walkthrough, see the [synthetic example session](docs/example-session.md). For measured provider status, see the [compatibility matrix](docs/compatibility.md). For the release order and evidence gates, see [the rollout plan](docs/rollout-plan.md).
+For a reproducible no-network walkthrough, see the [synthetic example session](docs/example-session.md). For measured provider status, see the [compatibility matrix](docs/compatibility.md). The [ChatGPT compatibility study](docs/chatgpt-compatibility-study.md) explains the private 20-share evidence gate. For the release order and evidence gates, see [the rollout plan](docs/rollout-plan.md).

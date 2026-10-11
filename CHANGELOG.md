@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased — 1.1.2 stabilization
+## Unreleased — 1.2.0 correctness and evidence
+
+This release is gated on a transparent 20-share, manual-fidelity compatibility study. It does not add a new provider parser, browser automation, or cloud service.
+
+- Adds a privacy-preserving public-share study protocol that records only sanitized local outcomes and publishes aggregate compatibility evidence.
+
+## 1.1.2 — 2026-10-12
 
 The next release closes correctness, safety, and release-hygiene gaps before new input formats or portability features are considered.
 

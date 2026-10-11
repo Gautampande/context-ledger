@@ -1,6 +1,6 @@
 # Provider adapter contract
 
-The `v1.1.2` stabilization branch retains one deliberately narrow public-share adapter: `chatgpt-share-react-router/0.3`. A provider page, export format, or undocumented API is never treated as a stable contract by assumption. The adapter is supported only when the fetched public `https://chatgpt.com/share/...` HTML contains the versioned embedded stream it recognizes.
+The `v1.2.0` evidence branch retains one deliberately narrow public-share adapter: `chatgpt-share-react-router/0.3`. A provider page, export format, or undocumented API is never treated as a stable contract by assumption. The adapter is supported only when the fetched public `https://chatgpt.com/share/...` HTML contains the versioned embedded stream it recognizes.
 
 ## Built-in ChatGPT public-share adapter
 

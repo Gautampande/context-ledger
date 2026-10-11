@@ -1,4 +1,4 @@
-# Context Ledger 1.1 threat model
+# Context Ledger 1.2 threat model
 
 ## Assets
 
