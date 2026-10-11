@@ -1,6 +1,6 @@
 # Compatibility matrix
 
-**Last updated:** 2026-10-12  
+**Last updated:** 2026-10-12
 **Evidence rule:** an import is not a fidelity pass until a person compares the generated transcript to the visible source conversation and finds no missing, duplicated, reordered, merged, or materially altered visible user/assistant turns.
 
 | Input path | Status | Parser / contract | Automated evidence | Live evidence | Important limits |
