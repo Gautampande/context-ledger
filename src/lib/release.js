@@ -11,6 +11,7 @@ const REQUIRED_TEXT_FILES = [
   "docs/threat-model.md",
   "docs/adapter-contract.md",
   "docs/phase1-acceptance.md",
+  "docs/project-guidebook.md",
   "docs/git-ready-layout.md",
   "docs/intellij-setup.md",
   "docs/recorder-sdk.md",
