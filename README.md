@@ -4,6 +4,8 @@
 
 It is deliberately **not** a universal ChatGPT/Claude/Gemini scraper. Version 1.1.1 includes one narrow adapter for the supported public ChatGPT shared-page React Router stream. It preserves only verified visible text messages and fails closed on unsupported representations or visible artifacts. It is not a claim of full account-export fidelity.
 
+For a full technical and product handoff—including architecture, current feature boundaries, security decisions, and a ready-to-use AI collaboration prompt—read the [project guidebook](docs/project-guidebook.md).
+
 ## What ships in 1.1.1
 
 - Exact UTF-8 Markdown import and strict normalized-JSON import.

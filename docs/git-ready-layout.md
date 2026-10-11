@@ -1,6 +1,6 @@
 # Git-ready project layout
 
-Create a new IntelliJ project named `context-ledger`, then create **exactly** this tracked-file layout. This is the complete public source layout for the 1.1.1 Git release.
+Create a new IntelliJ project named `context-ledger`, then create **exactly** this tracked-file layout. This is the public source layout for development beginning with the `v1.1.1` baseline.
 
 ```text
 context-ledger/
@@ -12,6 +12,7 @@ context-ledger/
 │   ├── git-ready-layout.md
 │   ├── intellij-setup.md
 │   ├── phase1-acceptance.md
+│   ├── project-guidebook.md
 │   ├── recorder-sdk.md
 │   └── threat-model.md
 ├── fixtures/
@@ -93,7 +94,7 @@ node src/cli.js release-check
 git init
 git add .
 git status
-git commit -m "Release Context Ledger 1.1.1"
+git commit -m "Initial Context Ledger source"
 git branch -M main
 git remote add origin <your-git-repository-url>
 git push -u origin main
@@ -111,4 +112,4 @@ npm test
 node src/cli.js import-json --input fixtures/normalized-example.json --out archives
 ```
 
-There is no `npm install` required for 1.1.1 because the project has no runtime dependencies. `package.json` is deliberately `private: true`, so a public Git repository can be used safely without accidentally publishing an npm package.
+There is no `npm install` required because the project has no runtime dependencies. `package.json` is deliberately `private: true`, so a public Git repository can be used safely without accidentally publishing an npm package.
