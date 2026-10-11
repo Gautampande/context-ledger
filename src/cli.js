@@ -7,7 +7,7 @@ import { expandEvidenceWindow, buildContinuationPacket } from "./lib/context.js"
 import { decryptArchive, encryptArchive, samePassphrase } from "./lib/crypto-envelope.js";
 import { SecurityError, UsageError } from "./lib/errors.js";
 import { readSafeFile, readSafeUtf8, writeNewFile } from "./lib/fs-safe.js";
-import { readInvertedIndex, searchInvertedIndex, verifyInvertedIndex, writeInvertedIndex } from "./lib/inverted-index.js";
+import { buildInvertedIndex, readInvertedIndex, searchInvertedIndex, verifyInvertedIndex, writeInvertedIndex } from "./lib/inverted-index.js";
 import { parseNormalizedImport } from "./lib/normalized-import.js";
 import {
   addArchiveToProject,
@@ -174,8 +174,9 @@ async function commandImportMarkdown(values) {
   const output = one(values, "out");
   const transcript = await readSafeUtf8(input);
   const archive = createArchiveFromMarkdown(transcript, { sourceName: path.basename(input), method: "manual" });
+  const prebuiltIndex = buildInvertedIndex(archive);
   const result = await writeArchiveBundle(archive, output);
-  const index = await writeInvertedIndex(result.archive, archive);
+  const index = await writeInvertedIndex(result.archive, archive, prebuiltIndex);
   writeJson({ archiveId: archive.archiveId, archive: result.archive, index: index.path, directory: result.directory, aiCalls: 0 });
 }
 
@@ -187,8 +188,9 @@ async function commandImportJson(values) {
     sourceName: path.basename(input),
     sourceDocumentSha256: parsed.sourceDocumentSha256,
   });
+  const prebuiltIndex = buildInvertedIndex(archive);
   const result = await writeArchiveBundle(archive, output);
-  const index = await writeInvertedIndex(result.archive, archive);
+  const index = await writeInvertedIndex(result.archive, archive, prebuiltIndex);
   writeJson({ archiveId: archive.archiveId, archive: result.archive, index: index.path, directory: result.directory, aiCalls: 0 });
 }
 
@@ -275,7 +277,7 @@ async function commandEncrypt(values) {
 }
 
 async function commandDecrypt(values) {
-  const envelope = await readSafeUtf8(one(values, "input"), 12 * 1024 * 1024);
+  const envelope = await readSafeUtf8(one(values, "input"), 18 * 1024 * 1024);
   const passphrase = await readPassphrase("Passphrase: ");
   try {
     const plaintext = await decryptArchive(envelope, passphrase);

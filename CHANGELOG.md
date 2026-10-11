@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — 1.1.2 stabilization
+
+The next release closes correctness, safety, and release-hygiene gaps before new input formats or portability features are considered.
+
+- Ignores hidden/context-only ChatGPT provider records before validating role or content, while continuing to reject unsupported **visible** message artifacts.
+- Builds a deterministic search index before writing a new imported archive, preventing an index-resource failure from leaving a partial-looking bundle behind.
+- Rejects a non-ChatGPT URL passed to `import-chatgpt-share` before it makes a request; redirects remain allowlist-checked.
+- Allows the CLI to read a bounded worst-case base64 encryption envelope for the existing 12 MiB plaintext cap, with tamper and KDF-profile regression coverage.
+- Makes title and bounded-handoff truncation Unicode code-point safe.
+- Replaces the hand-maintained syntax-check list with source-tree discovery; adds Node 20/22 CI across Ubuntu, macOS, and Windows plus monthly GitHub Actions update checks.
+- Adds an explicit compatibility matrix, a synthetic no-network sample session, and the evidence-gated rollout plan.
+
 ## 1.1.1 — 2026-10-06
 
 Corrects the public ChatGPT shared-link adapter after live smoke testing.

@@ -4,7 +4,7 @@
 
 Phase 1 is complete when one supported public AI conversation can be imported into a local archive that preserves the adapter-verified visible conversation, supports deterministic local search, manual annotations/pins, integrity verification, and deterministic continuation generation—without an AI API key.
 
-The supported surface in 1.1.1 is the versioned `chatgpt-share-react-router/0.3` adapter for public `https://chatgpt.com/share/...` pages whose fetched HTML exposes the recognized `linear_conversation` stream. This is intentionally narrower than “all ChatGPT conversations.”
+The published 1.1.1 surface, retained and stabilized in the 1.1.2 branch, is the versioned `chatgpt-share-react-router/0.3` adapter for public `https://chatgpt.com/share/...` pages whose fetched HTML exposes the recognized `linear_conversation` stream. This is intentionally narrower than “all ChatGPT conversations.”
 
 ## Automated acceptance coverage
 
@@ -13,7 +13,7 @@ The test suite covers this complete path with owned, sanitized HTML fixtures and
 ```text
 public URL
   -> safe fetch
-  -> ChatGPT visible-DOM parser
+  -> ChatGPT versioned stream parser
   -> canonical events
   -> archive.aicx.json + transcript.md
   -> checksum-bound index

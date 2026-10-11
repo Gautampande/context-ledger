@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
-import { eventsFromMarkdown, eventsFromMessages, renderNormalizedTranscript, titleFromTranscript } from "./transcript.js";
+import { eventsFromMarkdown, eventsFromMessages, isValidTitle, renderNormalizedTranscript, titleFromTranscript } from "./transcript.js";
 import { sha256, sha256Text } from "./hash.js";
 import {
   decodeUtf8,
@@ -33,6 +33,7 @@ const SHARED_CAPTURE_FIELDS = new Set([
 const SHARED_PARSERS = new Set(["chatgpt-share-dom/0.1", "chatgpt-share-react-router/0.2", "chatgpt-share-react-router/0.3"]);
 const TRANSCRIPT_FIELDS = new Set(["encoding", "byteLength", "sha256", "content"]);
 const EVENT_FIELDS = new Set(["id", "sequence", "role", "content", "contentSha256"]);
+const ANNOTATION_FIELDS = new Set(["eventId", "kind", "note", "createdAt"]);
 
 function asArchiveJson(archive) {
   return `${JSON.stringify(archive, null, 2)}\n`;
@@ -186,7 +187,7 @@ export function validateNormalizedImport(value) {
   if (keys.some((key) => !["schema", "title", "messages"].includes(key)) || value.schema !== NORMALIZED_IMPORT_SCHEMA) {
     throw new SecurityError("Normalized import has unsupported fields or schema.");
   }
-  if (typeof value.title !== "string" || value.title.length === 0 || value.title.length > 120 || /[\u0000-\u001f\u007f]/u.test(value.title)) {
+  if (!isValidTitle(value.title)) {
     throw new SecurityError("Normalized import title is invalid.");
   }
   if (!Array.isArray(value.messages) || value.messages.length === 0 || value.messages.length > 10_000) {
@@ -265,7 +266,7 @@ export function validateArchive(value) {
   if (value.security.untrustedContent !== true || value.security.aiProcessing !== "not-used") {
     throw new SecurityError("Archive security metadata is invalid.");
   }
-  if (isManual && (typeof value.title !== "string" || value.title.length > 120 || /[\u0000-\u001f\u007f]/u.test(value.title) || value.title !== titleFromTranscript(value.transcript.content))) {
+  if (isManual && (!isValidTitle(value.title) || value.title !== titleFromTranscript(value.transcript.content))) {
     throw new SecurityError("Archive title is invalid.");
   }
   if (isManual && Object.hasOwn(value, "normalizedSource")) {
@@ -372,7 +373,7 @@ function annotationPath(archivePath) {
   return `${archivePath}.annotations.json`;
 }
 
-function validateAnnotations(value, archive) {
+export function validateAnnotations(value, archive) {
   assertPlainObject(value, "Annotations");
   if (value.schema !== "aicx-annotations/0.1" || value.archiveId !== archive.archiveId || !Array.isArray(value.items)) {
     throw new SecurityError("Annotation sidecar does not belong to this archive.");
@@ -381,6 +382,7 @@ function validateAnnotations(value, archive) {
   if (value.items.length > 1_000) throw new SecurityError("Too many annotations.");
   for (const item of value.items) {
     assertPlainObject(item, "Annotation");
+    assertOnlyFields(item, ANNOTATION_FIELDS, "Annotation");
     if (
       typeof item.eventId !== "string" ||
       !eventIds.has(item.eventId) ||

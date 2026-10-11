@@ -1,27 +1,36 @@
 import assert from "node:assert/strict";
-import { copyFile, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { execFile as execFileCallback } from "node:child_process";
+import { copyFile, lstat, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { addAnnotation, createArchiveFromMarkdown, createArchiveFromNormalizedImport, readAnnotations, readArchive, validateArchive } from "../src/lib/archive.js";
+import { promisify } from "node:util";
+import { addAnnotation, createArchiveFromMarkdown, createArchiveFromNormalizedImport, readAnnotations, readArchive, validateArchive, writeArchiveBundle } from "../src/lib/archive.js";
 import { createAiPlan, invokeAiPlan, validateAiPlan } from "../src/lib/ai.js";
 import { importChatGptSharedConversation, parseChatGptSharedHtml } from "../src/lib/chatgpt-share.js";
-import { buildContinuationPacket, expandEvidenceWindow } from "../src/lib/context.js";
+import { buildContinuationPacket, expandEvidenceWindow, truncateUtf8AtCodePointBoundary } from "../src/lib/context.js";
 import { decryptArchive, encryptArchive } from "../src/lib/crypto-envelope.js";
 import { SecurityError, UsageError } from "../src/lib/errors.js";
 import { resolveOutputPath } from "../src/lib/fs-safe.js";
 import { sha256Text } from "../src/lib/hash.js";
 import { assertIndexMatchesArchive, buildInvertedIndex, readInvertedIndex, searchInvertedIndex, validateInvertedIndex, verifyInvertedIndex } from "../src/lib/inverted-index.js";
 import { parseNormalizedImport } from "../src/lib/normalized-import.js";
-import { buildProjectHandoff, canonicalArchiveSha256, createProject, addProjectEdge, validateProject, verifyProject } from "../src/lib/project-graph.js";
+import { addRepositoryArtifact, buildProjectHandoff, canonicalArchiveSha256, createProject, addProjectEdge, validateProject, verifyProject } from "../src/lib/project-graph.js";
 import { parsePluginRegistry } from "../src/lib/plugin-registry.js";
 import { searchArchive } from "../src/lib/search.js";
-import { acquireSharedSnapshot } from "../src/lib/share-link.js";
+import { acquireSharedSnapshot, fetchApprovedSharedPage } from "../src/lib/share-link.js";
+import { titleFromTranscript } from "../src/lib/transcript.js";
 import { renderStaticViewer } from "../src/lib/viewer.js";
 import { ConversationRecorder } from "../src/sdk/recorder.js";
 
 const transcript = "# Demo\n\n## User\n\nUse PKCE.\n\n## Assistant\n\nPKCE is the decision.\n";
 const ROOT_DIRECTORY = process.cwd();
+const execFile = promisify(execFileCallback);
+
+async function runCli(argumentsList, cwd) {
+  const { stdout } = await execFile(process.execPath, [path.join(ROOT_DIRECTORY, "src", "cli.js"), ...argumentsList], { cwd });
+  return JSON.parse(stdout);
+}
 
 test("creates an exact transcript record and ordered message events", () => {
   const archive = createArchiveFromMarkdown(transcript, { sourceName: "demo.md" });
@@ -115,15 +124,141 @@ test("encryption round-trip rejects the wrong passphrase", async () => {
   wrong.fill(0);
 });
 
+test("encryption accepts a maximum-size plaintext and rejects altered envelope metadata", async () => {
+  const passphrase = Buffer.from("correct horse battery staple", "utf8");
+  const plaintext = Buffer.alloc(12 * 1024 * 1024, 0x61);
+  const envelope = await encryptArchive(plaintext, passphrase);
+  assert.ok(Buffer.byteLength(envelope, "utf8") > 12 * 1024 * 1024);
+  assert.ok(Buffer.byteLength(envelope, "utf8") < 18 * 1024 * 1024);
+  assert.deepEqual(await decryptArchive(envelope, passphrase), plaintext);
+
+  const badKdf = JSON.parse(envelope);
+  badKdf.kdf.N = 1;
+  await assert.rejects(() => decryptArchive(JSON.stringify(badKdf), passphrase), SecurityError);
+  const alteredCiphertext = JSON.parse(envelope);
+  alteredCiphertext.ciphertext = `A${alteredCiphertext.ciphertext.slice(1)}`;
+  await assert.rejects(() => decryptArchive(JSON.stringify(alteredCiphertext), passphrase), SecurityError);
+  passphrase.fill(0);
+});
+
+test("title and evidence limits preserve UTF-8 code-point boundaries", () => {
+  const longTitle = "🔐".repeat(121);
+  assert.equal(Array.from(titleFromTranscript(`# ${longTitle}`)).length, 120);
+  const accepted = parseNormalizedImport(JSON.stringify({
+    schema: "context-ledger-import/0.1",
+    title: "🔐".repeat(120),
+    messages: [{ role: "user", content: "Valid Unicode title." }],
+  }));
+  assert.doesNotThrow(() => createArchiveFromNormalizedImport(accepted.document, { sourceDocumentSha256: accepted.sourceDocumentSha256 }));
+  assert.throws(() => parseNormalizedImport(JSON.stringify({
+    schema: "context-ledger-import/0.1",
+    title: "🔐".repeat(121),
+    messages: [{ role: "user", content: "Too long." }],
+  })), SecurityError);
+  assert.equal(truncateUtf8AtCodePointBoundary("a🔐b", 4), "a");
+  assert.equal(truncateUtf8AtCodePointBoundary("a🔐b", 5), "a🔐");
+});
+
+test("CLI rejects an index that exceeds limits before writing an archive bundle", { concurrency: false }, async () => {
+  const testDirectory = await mkdtemp(path.join(os.tmpdir(), "context-ledger-index-preflight-"));
+  try {
+    const markdown = Array.from({ length: 100_001 }, (_, index) => `term${index}`).join(" ");
+    await writeFile(path.join(testDirectory, "dense.md"), markdown, "utf8");
+    await assert.rejects(
+      () => runCli(["import-markdown", "--input", "dense.md", "--out", "failed-output"], testDirectory),
+      (error) => /too many unique search terms/u.test(error.stderr),
+    );
+    await assert.rejects(() => lstat(path.join(testDirectory, "failed-output")));
+  } finally {
+    await rm(testDirectory, { recursive: true, force: true });
+  }
+});
+
+
 test("refuses output path traversal", async () => {
   await assert.rejects(() => resolveOutputPath("../escape.txt"), SecurityError);
   await assert.rejects(() => resolveOutputPath("/absolute.txt"), SecurityError);
+});
+
+test("refuses a new output below a symbolic-link directory", { concurrency: false }, async (context) => {
+  const testDirectory = await mkdtemp(path.join(os.tmpdir(), "context-ledger-symlink-"));
+  const originalDirectory = process.cwd();
+  try {
+    process.chdir(testDirectory);
+    await mkdir("target");
+    try {
+      await symlink("target", "linked-output", "dir");
+    } catch {
+      context.skip("This platform does not permit test symlink creation.");
+      return;
+    }
+    await assert.rejects(() => resolveOutputPath("linked-output/new.txt"), SecurityError);
+  } finally {
+    process.chdir(originalDirectory);
+    await rm(testDirectory, { recursive: true, force: true });
+  }
 });
 
 test("refuses unapproved and non-HTTPS shared links before any fetch", async () => {
   await assert.rejects(() => acquireSharedSnapshot("https://example.com/share/demo", "snapshots"), SecurityError);
   await assert.rejects(() => acquireSharedSnapshot("http://chatgpt.com/share/demo", "snapshots"), SecurityError);
   await assert.rejects(() => acquireSharedSnapshot("https://chatgpt.com/share/demo?track=1", "snapshots"), SecurityError);
+});
+
+test("shared-page acquisition rejects unsafe redirects, oversized responses, and timeouts", async () => {
+  let redirected = 0;
+  await assert.rejects(
+    () => fetchApprovedSharedPage("https://chatgpt.com/share/11111111-1111-4111-8111-111111111111", {
+      fetchImpl: async () => {
+        redirected += 1;
+        return new Response(null, { status: 302, headers: { location: "https://example.com/share/not-allowed" } });
+      },
+    }),
+    SecurityError,
+  );
+  assert.equal(redirected, 1);
+  await assert.rejects(
+    () => fetchApprovedSharedPage("https://chatgpt.com/share/11111111-1111-4111-8111-111111111111", {
+      fetchImpl: async () => new Response("small body", {
+        status: 200,
+        headers: { "content-type": "text/html", "content-length": String(5 * 1024 * 1024 + 1) },
+      }),
+    }),
+    SecurityError,
+  );
+  await assert.rejects(
+    () => fetchApprovedSharedPage("https://chatgpt.com/share/11111111-1111-4111-8111-111111111111", {
+      timeoutMs: 1,
+      fetchImpl: async (_url, init) => new Promise((_resolve, reject) => {
+        init.signal.addEventListener("abort", () => reject(Object.assign(new Error("aborted"), { name: "AbortError" })));
+      }),
+    }),
+    SecurityError,
+  );
+});
+
+test("repository attachments record a safe loose Git HEAD reference", { concurrency: false }, async () => {
+  const testDirectory = await mkdtemp(path.join(os.tmpdir(), "context-ledger-git-head-"));
+  const originalDirectory = process.cwd();
+  try {
+    process.chdir(testDirectory);
+    await mkdir("repo/.git/refs/heads", { recursive: true });
+    await writeFile("repo/.git/HEAD", "ref: refs/heads/main\n", "utf8");
+    await writeFile("repo/.git/refs/heads/main", `${"a".repeat(40)}\n`, "utf8");
+    const project = createProject("Repository evidence");
+    await addRepositoryArtifact(project, "repo");
+    assert.equal(project.artifacts[0].head, "a".repeat(40));
+  } finally {
+    process.chdir(originalDirectory);
+    await rm(testDirectory, { recursive: true, force: true });
+  }
+});
+
+test("CLI rejects unsupported command options before reading inputs", async () => {
+  await assert.rejects(
+    () => execFile(process.execPath, [path.join(ROOT_DIRECTORY, "src", "cli.js"), "plugins", "--unexpected", "value"], { cwd: ROOT_DIRECTORY }),
+    (error) => /--unexpected is not supported by plugins/u.test(error.stderr),
+  );
 });
 
 test("normalized import preserves literal headings within a single message", () => {
@@ -443,6 +578,26 @@ test("ChatGPT React Router stream parser excludes the observed source-less custo
   ]);
 });
 
+test("ChatGPT React Router stream parser ignores hidden unsupported records before validating them", () => {
+  const hiddenUnsupported = routerMessage({
+    id: "hidden-tool",
+    role: "tool",
+    text: "private non-text provider state",
+    time: 11,
+    contentType: "multimodal_text",
+  });
+  hiddenUnsupported.is_visually_hidden_from_conversation = true;
+  const page = reactRouterSharePage([
+    routerMessage({ id: "user-1", role: "user", text: "A visible question.", time: 10 }),
+    hiddenUnsupported,
+    routerMessage({ id: "assistant-1", role: "assistant", text: "A visible answer.", time: 12 }),
+  ]);
+  assert.deepEqual(parseChatGptSharedHtml(page).document.messages, [
+    { role: "user", content: "A visible question." },
+    { role: "assistant", content: "A visible answer." },
+  ]);
+});
+
 test("ChatGPT React Router stream parser rejects unsupported visible message representations", () => {
   const page = reactRouterSharePage([
     routerMessage({ id: "user-1", role: "user", text: "Show an image", time: 10 }),
@@ -574,4 +729,17 @@ test("ChatGPT public-share import reports a revoked or malformed remote page wit
     ),
     SecurityError,
   );
+});
+
+test("ChatGPT public-share import rejects an approved non-ChatGPT URL before any fetch", async () => {
+  let fetched = false;
+  await assert.rejects(
+    () => importChatGptSharedConversation(
+      "https://claude.ai/share/11111111-1111-4111-8111-111111111111",
+      "unused-output",
+      { fetchImpl: async () => { fetched = true; throw new Error("must not fetch"); } },
+    ),
+    UsageError,
+  );
+  assert.equal(fetched, false);
 });
