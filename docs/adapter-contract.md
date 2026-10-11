@@ -50,3 +50,5 @@ Until those criteria are met, use `import-json` with the documented normalized f
 ```
 
 Only `schema`, `title`, and `messages` are accepted. A message has exactly `role` and `content`; allowed roles are `user`, `assistant`, `tool`, and `system`. The source JSON is hashed, messages are preserved exactly in a normalized-source record, and the human-readable transcript is regenerated deterministically.
+
+If a message contains an unterminated Markdown code fence, the human-readable `transcript.md` adds only the matching structural closing fence before the next turn heading. This prevents the next message heading from being rendered as code. The original message content remains exact in the event and normalized-source records; the added delimiter is not attributed to either speaker.

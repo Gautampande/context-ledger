@@ -19,7 +19,7 @@ import { addRepositoryArtifact, buildProjectHandoff, canonicalArchiveSha256, cre
 import { parsePluginRegistry } from "../src/lib/plugin-registry.js";
 import { searchArchive } from "../src/lib/search.js";
 import { acquireSharedSnapshot, fetchApprovedSharedPage } from "../src/lib/share-link.js";
-import { titleFromTranscript } from "../src/lib/transcript.js";
+import { renderNormalizedTranscript, titleFromTranscript } from "../src/lib/transcript.js";
 import { renderStaticViewer } from "../src/lib/viewer.js";
 import { ConversationRecorder } from "../src/sdk/recorder.js";
 
@@ -157,6 +157,23 @@ test("title and evidence limits preserve UTF-8 code-point boundaries", () => {
   })), SecurityError);
   assert.equal(truncateUtf8AtCodePointBoundary("a🔐b", 4), "a");
   assert.equal(truncateUtf8AtCodePointBoundary("a🔐b", 5), "a🔐");
+});
+
+test("normalized transcript closes an unclosed message fence before the next turn heading", () => {
+  const userContent = "```js\nconst verifier = \"sample\";";
+  const messages = [
+    { role: "user", content: userContent },
+    { role: "assistant", content: "Use PKCE." },
+  ];
+  const rendered = renderNormalizedTranscript("Fence boundary", messages);
+  assert.match(rendered, /const verifier = "sample";\n```\n\n## Assistant/u);
+  const archive = createArchiveFromNormalizedImport(
+    { schema: "context-ledger-import/0.1", title: "Fence boundary", messages },
+    { sourceDocumentSha256: sha256Text(JSON.stringify({ schema: "context-ledger-import/0.1", title: "Fence boundary", messages })) },
+  );
+  assert.equal(archive.events[0].content, userContent);
+  assert.match(archive.transcript.content, /\n```\n\n## Assistant/u);
+  assert.doesNotThrow(() => validateArchive(archive));
 });
 
 test("CLI rejects an index that exceeds limits before writing an archive bundle", { concurrency: false }, async () => {

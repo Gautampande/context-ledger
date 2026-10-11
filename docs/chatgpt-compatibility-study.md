@@ -41,7 +41,7 @@ If a category cannot be represented by a public share, record it as unavailable 
    node src/cli.js import-chatgpt-share --url 'https://chatgpt.com/share/...' --out work/v1.2-compatibility
    ```
 
-3. If it imports, run `verify-index`, open the generated `transcript.md`, and compare every visible user and assistant turn in order.
+3. If it imports, run `verify-index`, open the generated `transcript.md`, and compare every visible user and assistant turn in order. A structural closing fence may appear after an otherwise unterminated source code fence; it protects the next turn boundary and is not source text.
 4. Record the outcome in a local ledger. Do not add the ledger to Git.
 5. If an imported transcript has any missing, duplicated, reordered, merged, or materially changed visible turn, stop the study and treat it as a release-blocking fidelity defect.
 6. If the command fails closed, record a sanitized error category. A closed failure is preferable to a partial archive, but it still counts as an attempted run.
