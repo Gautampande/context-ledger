@@ -2,11 +2,11 @@
 
 ## Current status
 
-The published baseline is `v1.1.1`. It has one deliberately narrow ChatGPT public-share adapter, deterministic local retrieval, optional local encryption, and no required AI API use. It has synthetic fixture coverage plus one disposable, user-owned live ChatGPT smoke test.
+The published baseline is `v1.1.2`. It has one deliberately narrow ChatGPT public-share adapter, deterministic local retrieval, optional local encryption, and no required AI API use. It has synthetic fixture coverage plus a disposable, user-owned live ChatGPT smoke test.
 
-That is encouraging, but it is not enough evidence to call the adapter broadly reliable or the product launch-ready. The public release history includes `v1.0.0`, `v1.1.0`, and `v1.1.1`; this plan corrects the stale assertion that no releases exist.
+That is encouraging, but it is not enough evidence to call the adapter broadly reliable or the product launch-ready. The public release history includes `v1.0.0`, `v1.1.0`, `v1.1.1`, and `v1.1.2`.
 
-The next version is **`v1.1.2` stabilization**, not a new provider, ZIP container, cloud service, or automatic chat-transfer feature.
+The next version is **`v1.2.0` correctness and evidence**, not a new provider, ZIP container, cloud service, or automatic chat-transfer feature. Its required study protocol is in [chatgpt-compatibility-study.md](chatgpt-compatibility-study.md).
 
 ## Positioning
 
@@ -31,7 +31,7 @@ Do not claim that the tool can universally move chats between AI products. A rec
 
 Dates are estimates, not promises. A gate that fails changes the plan rather than being waived.
 
-## `v1.1.2` stabilization scope
+## Completed `v1.1.2` stabilization scope
 
 1. Check hidden/context provider records before role or content validation, so a hidden unsupported record cannot block an otherwise valid visible capture.
 2. Permit the CLI to read a worst-case base64 encryption envelope while retaining a bounded encrypted payload.

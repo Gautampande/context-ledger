@@ -29,7 +29,7 @@ import { searchArchive } from "./lib/search.js";
 import { acquireSharedSnapshot } from "./lib/share-link.js";
 import { renderStaticViewer } from "./lib/viewer.js";
 
-const HELP = `Context Ledger 1.1 — local-first AI conversation archives
+const HELP = `Context Ledger 1.2 — local-first AI conversation archives
 
 Usage:
   import-markdown --input <file> --out <relative-directory>

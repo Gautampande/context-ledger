@@ -1,6 +1,6 @@
 # Provider adapter contract
 
-The `v1.1.2` stabilization branch retains one deliberately narrow public-share adapter: `chatgpt-share-react-router/0.3`. A provider page, export format, or undocumented API is never treated as a stable contract by assumption. The adapter is supported only when the fetched public `https://chatgpt.com/share/...` HTML contains the versioned embedded stream it recognizes.
+The `v1.2.0` evidence branch retains one deliberately narrow public-share adapter: `chatgpt-share-react-router/0.3`. A provider page, export format, or undocumented API is never treated as a stable contract by assumption. The adapter is supported only when the fetched public `https://chatgpt.com/share/...` HTML contains the versioned embedded stream it recognizes.
 
 ## Built-in ChatGPT public-share adapter
 
@@ -50,3 +50,5 @@ Until those criteria are met, use `import-json` with the documented normalized f
 ```
 
 Only `schema`, `title`, and `messages` are accepted. A message has exactly `role` and `content`; allowed roles are `user`, `assistant`, `tool`, and `system`. The source JSON is hashed, messages are preserved exactly in a normalized-source record, and the human-readable transcript is regenerated deterministically.
+
+If a message contains an unterminated Markdown code fence, the human-readable `transcript.md` adds only the matching structural closing fence before the next turn heading. This prevents the next message heading from being rendered as code. The original message content remains exact in the event and normalized-source records; the added delimiter is not attributed to either speaker.
