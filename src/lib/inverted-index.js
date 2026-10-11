@@ -121,9 +121,11 @@ async function writableArchivePath(archivePath) {
   return resolveOutputPath(relative);
 }
 
-export async function writeInvertedIndex(archivePath, archive) {
+export async function writeInvertedIndex(archivePath, archive, prebuiltIndex = undefined) {
   const safeArchivePath = await writableArchivePath(archivePath);
-  const index = buildInvertedIndex(archive);
+  const index = prebuiltIndex === undefined
+    ? buildInvertedIndex(archive)
+    : validateInvertedIndex(prebuiltIndex, archive);
   const target = sidecarPath(safeArchivePath);
   const serialized = `${JSON.stringify(index, null, 2)}\n`;
   if (Buffer.byteLength(serialized, "utf8") > MAX_LOCAL_BYTES) {

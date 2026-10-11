@@ -7,6 +7,21 @@ function findEvent(archive, id) {
   return archive.events.find((event) => event.id === id);
 }
 
+export function truncateUtf8AtCodePointBoundary(value, maximumBytes) {
+  if (typeof value !== "string" || !Number.isSafeInteger(maximumBytes) || maximumBytes < 0) {
+    throw new UsageError("Evidence truncation input is invalid.");
+  }
+  let used = 0;
+  let output = "";
+  for (const codePoint of value) {
+    const bytes = Buffer.byteLength(codePoint, "utf8");
+    if (used + bytes > maximumBytes) break;
+    output += codePoint;
+    used += bytes;
+  }
+  return output;
+}
+
 export function expandEvidenceWindow(archive, anchorIds, maximum = MAX_EVIDENCE_EVENTS) {
   if (!Array.isArray(anchorIds) || !Number.isSafeInteger(maximum) || maximum < 1 || maximum > MAX_EVIDENCE_EVENTS) {
     throw new UsageError(`Select 1 to ${MAX_EVIDENCE_EVENTS} evidence messages.`);
@@ -37,7 +52,7 @@ function boundedEvidenceBlocks(events) {
       remaining -= bytes;
       return `${header}${event.content}`;
     }
-    const excerpt = Buffer.from(event.content, "utf8").subarray(0, remaining).toString("utf8");
+    const excerpt = truncateUtf8AtCodePointBoundary(event.content, remaining);
     remaining = 0;
     return `${header}${excerpt}\n\n[Truncated in this bounded handoff; retrieve the full verified event from the archive.]`;
   });

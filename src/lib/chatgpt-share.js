@@ -1,7 +1,8 @@
 import { createArchiveFromSharedConversation, writeArchiveBundle } from "./archive.js";
 import { SecurityError, UsageError } from "./errors.js";
-import { writeInvertedIndex } from "./inverted-index.js";
-import { fetchApprovedSharedPage } from "./share-link.js";
+import { buildInvertedIndex, writeInvertedIndex } from "./inverted-index.js";
+import { fetchApprovedSharedPage, inspectApprovedSharedUrl } from "./share-link.js";
+import { truncateTitle } from "./transcript.js";
 
 export const CHATGPT_SHARE_PARSER = "chatgpt-share-react-router/0.3";
 const LEGACY_DOM_PARSER = "chatgpt-share-dom/0.1";
@@ -142,7 +143,7 @@ function titleFromHtml(html) {
   const withoutProviderSuffix = candidate.replace(/\s*(?:[-|–—]\s*)?ChatGPT\s*$/iu, "").trim();
   const title = withoutProviderSuffix || "ChatGPT shared conversation";
   if (UNSAFE_CONTROL.test(title)) throw new SecurityError("ChatGPT share title contains an unsafe control character.");
-  return Array.from(title).slice(0, 120).join("");
+  return truncateTitle(title);
 }
 
 function parseVisibleDomMessages(html) {
@@ -287,12 +288,12 @@ function isHiddenOrContextOnly(message) {
 function messageFromLinearNode(node, sequence) {
   const message = asMessageObject(node?.message);
   if (!message) return null;
+  if (isHiddenOrContextOnly(message)) return null;
   const role = message.author?.role;
   if (role === "system") return null;
   if (role !== "user" && role !== "assistant") {
     throw new SecurityError("ChatGPT share page contains an unsupported linear-conversation role.");
   }
-  if (isHiddenOrContextOnly(message)) return null;
   const content = asMessageObject(message.content);
   if (content?.content_type !== "text" || !Array.isArray(content.parts) || content.parts.some((part) => typeof part !== "string")) {
     throw new SecurityError("ChatGPT share page contains a visible unsupported message artifact; no partial transcript was created.");
@@ -371,6 +372,10 @@ export function parseChatGptSharedHtml(html) {
 
 /** End-to-end import used by the CLI and integration tests. */
 export async function importChatGptSharedConversation(shareUrl, outputDirectory, { fetchImpl } = {}) {
+  const requested = inspectApprovedSharedUrl(shareUrl);
+  if (requested.provider !== "chatgpt") {
+    throw new UsageError("import-chatgpt-share accepts only chatgpt.com/share public links.");
+  }
   const page = await fetchApprovedSharedPage(shareUrl, { fetchImpl });
   if (page.provider !== "chatgpt") {
     throw new UsageError("import-chatgpt-share accepts only chatgpt.com/share public links.");
@@ -385,8 +390,9 @@ export async function importChatGptSharedConversation(shareUrl, outputDirectory,
     sourceHtmlSha256: page.sourceHtmlSha256,
     parser: parsed.parser,
   });
+  const prebuiltIndex = buildInvertedIndex(archive);
   const bundle = await writeArchiveBundle(archive, outputDirectory);
-  const index = await writeInvertedIndex(bundle.archive, archive);
+  const index = await writeInvertedIndex(bundle.archive, archive, prebuiltIndex);
   return {
     archive,
     bundle,

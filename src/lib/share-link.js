@@ -13,7 +13,7 @@ const ALLOWED_SHARE_URLS = [
   { provider: "gemini", host: "gemini.google.com", prefix: "/share/" },
 ];
 
-function inspectShareUrl(value) {
+export function inspectApprovedSharedUrl(value) {
   let parsed;
   try {
     parsed = new URL(value);
@@ -66,11 +66,14 @@ async function readBoundedBody(response) {
  * untrusted; callers must use a provider-specific parser before treating it as
  * conversation text. URLs are hashed in returned metadata and never persisted.
  */
-export async function fetchApprovedSharedPage(shareUrl, { fetchImpl = fetch } = {}) {
+export async function fetchApprovedSharedPage(shareUrl, { fetchImpl = fetch, timeoutMs = TIMEOUT_MS } = {}) {
   if (typeof fetchImpl !== "function") throw new UsageError("A fetch implementation is required.");
-  let { parsed: current, provider } = inspectShareUrl(shareUrl);
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > TIMEOUT_MS) {
+    throw new UsageError(`Shared-page timeout must be between 1 and ${TIMEOUT_MS} milliseconds.`);
+  }
+  let { parsed: current, provider } = inspectApprovedSharedUrl(shareUrl);
   const aborter = new AbortController();
-  const timeout = setTimeout(() => aborter.abort(), TIMEOUT_MS);
+  const timeout = setTimeout(() => aborter.abort(), timeoutMs);
   try {
     for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
       const response = await fetchImpl(current, {
@@ -87,7 +90,7 @@ export async function fetchApprovedSharedPage(shareUrl, { fetchImpl = fetch } = 
       if (response.status >= 300 && response.status < 400) {
         const location = response.headers.get("location");
         if (!location) throw new SecurityError("Shared page sent a redirect without a location.");
-        ({ parsed: current, provider } = inspectShareUrl(new URL(location, current).toString()));
+        ({ parsed: current, provider } = inspectApprovedSharedUrl(new URL(location, current).toString()));
         continue;
       }
       if (!response.ok) throw new SecurityError(`Shared page returned HTTP ${response.status}.`);

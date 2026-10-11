@@ -6,13 +6,31 @@ const ROLE_BY_HEADING = new Map([
   ["tool", "tool"],
   ["system", "system"],
 ]);
+export const MAX_TITLE_CODE_POINTS = 120;
+
+export function titleLength(value) {
+  return typeof value === "string" ? Array.from(value).length : Number.NaN;
+}
+
+export function isValidTitle(value) {
+  return (
+    typeof value === "string" &&
+    titleLength(value) >= 1 &&
+    titleLength(value) <= MAX_TITLE_CODE_POINTS &&
+    !/[\u0000-\u001f\u007f]/u.test(value)
+  );
+}
+
+export function truncateTitle(value) {
+  return Array.from(value).slice(0, MAX_TITLE_CODE_POINTS).join("");
+}
 
 export function titleFromTranscript(transcript) {
   const candidate = transcript
     .split(/\r?\n/u)
     .map((line) => line.replace(/^#+\s*/u, "").trim())
     .find((line) => line.length > 0 && !ROLE_BY_HEADING.has(line.toLowerCase()));
-  return (candidate || "Untitled conversation").slice(0, 120);
+  return truncateTitle(candidate || "Untitled conversation");
 }
 
 export function eventsFromMarkdown(transcript) {

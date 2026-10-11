@@ -1,7 +1,7 @@
 # Context Ledger guidebook
 
-**Project status:** published baseline `v1.1.1`  
-**Audience:** maintainers, contributors, and an AI collaborator joining the project  
+**Project status:** published baseline `v1.1.1`; `v1.1.2` stabilization work is in development
+**Audience:** maintainers, contributors, and an AI collaborator joining the project
 **Purpose:** a self-contained explanation of what Context Ledger is, what it actually does today, how it is built, and the boundaries that future work must preserve.
 
 ---
@@ -142,7 +142,7 @@ The safest fallback for an unsupported provider is a local Markdown transcript o
 | Cryptography | Node.js `crypto` primitives: SHA-256, AES-256-GCM, scrypt |
 | Tests | Node's built-in `node --test` runner |
 | Static syntax checks | `node --check` |
-| CI | GitHub Actions on Node 20 |
+| CI | GitHub Actions on Node 20 and 22 across Ubuntu, macOS, and Windows |
 | Source control/distribution | Public Apache-2.0 Git repository; package intentionally remains `private: true` |
 | Primary development IDE | IntelliJ IDEA is supported, but any Node-compatible editor works |
 
@@ -217,6 +217,7 @@ Private conversation data, encrypted archives, share URLs, snapshots, API keys, 
 | 1.0.0 | Optional consent-gated BYOK AI, project graph, recorder SDK, registry, CI, release/security docs |
 | 1.1.0 | Initial narrow public ChatGPT shared-link import and provider fixtures |
 | 1.1.1 | Live-validated ChatGPT React Router stream decoder, stricter message handling, 30-test baseline |
+| 1.1.2 (unreleased) | Stabilization: correctness, security, cross-platform CI, and compatibility evidence before new formats |
 
 ## 11. Verification and release discipline
 
@@ -277,8 +278,10 @@ Before proposing code, state which supported behavior, file, tests, security bou
 
 ## 14. Current status and next-work guidance
 
-`v1.1.1` is the stable Phase 1 baseline. Future work should happen on a feature branch and should not modify the released tag.
+`v1.1.1` is the stable Phase 1 baseline. The immediate next release is `v1.1.2` stabilization; it does not add another provider, cloud sync, browser automation, embeddings, a vector database, automatic AI extraction, or a new package format.
 
-The next phase has not been committed to a specific provider or feature in this guide. The correct selection rule is simple: pursue only work that improves useful local portability or retrieval **without** weakening the boundaries above. Any new provider adapter requires the documented adapter proposal, sanitized fixtures, end-to-end acceptance coverage, and a new release version.
+The selection rule remains simple: pursue only work that improves useful local portability or retrieval **without** weakening the boundaries above. Any future provider adapter or package format requires the documented proposal, sanitized fixtures, end-to-end acceptance coverage, and a new release version.
 
-For detailed security assumptions, read `docs/threat-model.md`. For the exact provider-adapter requirements, read `docs/adapter-contract.md`. For the Phase 1 completion criteria, read `docs/phase1-acceptance.md`.
+For detailed security assumptions, read `docs/threat-model.md`. For the exact provider-adapter requirements, read `docs/adapter-contract.md`. For the Phase 1 completion criteria, read `docs/phase1-acceptance.md`. The measured provider status is in `docs/compatibility.md`, and a no-network walkthrough is in `docs/example-session.md`.
+
+The release sequence and evidence gates are maintained in `docs/rollout-plan.md`.
