@@ -13,6 +13,7 @@ const REQUIRED_TEXT_FILES = [
   "docs/phase1-acceptance.md",
   "docs/compatibility.md",
   "docs/chatgpt-compatibility-study.md",
+  "docs/v1.2.0-compatibility-report.md",
   "docs/example-session.md",
   "docs/project-guidebook.md",
   "docs/rollout-plan.md",

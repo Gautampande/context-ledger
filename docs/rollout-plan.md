@@ -23,7 +23,7 @@ Do not claim that the tool can universally move chats between AI products. A rec
 | Release | Theme | Exit gate |
 | --- | --- | --- |
 | `v1.1.2` | Stabilization and trustworthy failures | Cross-platform CI green; stated regression tests pass; docs match actual behavior. |
-| `v1.2.0` | Correctness and evidence | A published, transparent real-chat compatibility result; no silent fidelity failure in a passing import. |
+| `v1.2.0` | Correctness and evidence | A published, transparent three-scenario live canary; no silent fidelity failure in a passing import. |
 | `v1.3.0` | New input paths | Each new import method has a versioned parser, sanitized fixtures, documented limits, and its own compatibility evidence. |
 | `v1.4.0` | Usability | Three new users complete a handoff unassisted in five minutes or less. |
 | `v1.5.0` | Value measurement | A reproducible evaluation compares the bounded handoff against honest baselines. |
@@ -50,7 +50,9 @@ Dates are estimates, not promises. A gate that fails changes the plan rather tha
 
 The compatibility matrix separates **import success** from **fidelity**. An import counts as a fidelity pass only if the visible user/assistant turns are manually compared and have no missing, duplicated, reordered, merged, or materially altered message.
 
-Before a release claims broad ChatGPT-share support, test at least 20 user-owned, non-sensitive public shares selected across different chat lengths and formatting styles. Publish:
+The `v1.2.0` release gate is a manageable three-scenario live canary: a short conversation with a code-fence boundary, multi-turn plain text, and rich formatting (code, Unicode, links, and a table). Each successful import must be manually compared. Sanitized automated coverage already exercises a 240-turn conversation and provider-state exclusions. The detailed procedure is in [chatgpt-compatibility-study.md](chatgpt-compatibility-study.md).
+
+Twenty user-owned, non-sensitive public shares remain a **rolling confidence target before any broad ChatGPT-support claim**, not a release blocker for a solo maintainer. When enough reports accumulate, publish:
 
 - Attempted, imported, and fidelity-pass counts separately.
 - Selection method and test date.
