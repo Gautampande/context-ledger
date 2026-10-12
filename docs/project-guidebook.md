@@ -218,7 +218,7 @@ Private conversation data, encrypted archives, share URLs, snapshots, API keys, 
 | 1.1.0 | Initial narrow public ChatGPT shared-link import and provider fixtures |
 | 1.1.1 | Live-validated ChatGPT React Router stream decoder, stricter message handling, 30-test baseline |
 | 1.1.2 | Stabilization: correctness, security, cross-platform CI, and compatibility evidence before new formats |
-| 1.2.0 (unreleased) | Transparent 20-share compatibility study and published aggregate fidelity evidence before new formats |
+| 1.2.0 (unreleased) | Transparent three-scenario live canary and published aggregate fidelity evidence before new formats; 20 shares is a later rolling confidence target |
 
 ## 11. Verification and release discipline
 
