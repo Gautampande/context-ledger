@@ -120,4 +120,4 @@ The release check verifies local repository metadata and documentation; it does 
 
 Read [SECURITY.md](SECURITY.md), [the threat model](docs/threat-model.md), and [CONTRIBUTING.md](CONTRIBUTING.md) before using sensitive data or adding a provider adapter.
 
-For a reproducible no-network walkthrough, see the [synthetic example session](docs/example-session.md). For measured provider status, see the [compatibility matrix](docs/compatibility.md). The [ChatGPT compatibility study](docs/chatgpt-compatibility-study.md) explains the private 20-share evidence gate. For the release order and evidence gates, see [the rollout plan](docs/rollout-plan.md).
+For a reproducible no-network walkthrough, see the [synthetic example session](docs/example-session.md). For measured provider status, see the [compatibility matrix](docs/compatibility.md). The [ChatGPT compatibility study](docs/chatgpt-compatibility-study.md) explains the private three-scenario release canary and the later rolling confidence target. For the release order and evidence gates, see [the rollout plan](docs/rollout-plan.md).
