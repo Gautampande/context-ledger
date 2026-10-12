@@ -7,7 +7,7 @@
 | --- | --- | --- | --- | --- | --- |
 | Local Markdown | Supported | `import-markdown` | Unit and integration coverage | Not applicable | The user supplies the transcript; headings can only be inferred where the Markdown format permits it. |
 | Normalized JSON | Supported | `context-ledger-import/0.1` | Strict-schema and fidelity tests | Not applicable | Only the documented allowlisted JSON shape is accepted. |
-| Public ChatGPT share | Narrow / preliminary | `chatgpt-share-react-router/0.3` | Sanitized DOM and serialized-stream fixtures; end-to-end archive, index, handoff, and portability test | One disposable, user-owned import smoke test; not a representative fidelity study | Public `chatgpt.com/share/...` pages only; visible text messages in the recognized stream only; provider changes can cause a closed failure. |
+| Public ChatGPT share | Narrow / initial live canary | `chatgpt-share-react-router/0.3` | Sanitized DOM and serialized-stream fixtures; end-to-end archive, index, handoff, and portability test | Three dedicated, user-owned public-share attempts were imported and manually compared on 2026-10-12; see the [v1.2.0 report](v1.2.0-compatibility-report.md). | Public `chatgpt.com/share/...` pages only; visible text messages in the recognized stream only; provider changes can cause a closed failure. |
 | Public Claude share | Snapshot only | `fetch-share` | Acquisition-boundary tests | No transcript fidelity claim | HTML is saved as untrusted opaque data; no Claude transcript parser exists. |
 | Public Gemini share | Snapshot only | `fetch-share` | Acquisition-boundary tests | No transcript fidelity claim | HTML is saved as untrusted opaque data; no Gemini transcript parser exists. |
 | Private chats, account exports, browser sessions | Not supported | None | Not applicable | Not applicable | No cookies, account access, browser automation, private APIs, or consumer-UI scraping. |
@@ -16,7 +16,7 @@
 
 The ChatGPT importer is a versioned compatibility surface, not a promise that every public ChatGPT share page will import. It reads no page JavaScript and accepts only the provider's recognized `linear_conversation` order and supported text parts. An unsupported visible representation is an error; it must never become a partial archive.
 
-Before calling this support broad, maintainers must run the 20-share evidence gate in the [rollout plan](rollout-plan.md): publish attempted, imported, and manually verified fidelity-pass counts separately, plus sanitized failure categories and the parser version.
+The `v1.2.0` release uses a three-scenario live canary. Before calling this support broad, maintainers need the later rolling 20-share confidence target in the [rollout plan](rollout-plan.md): publish attempted, imported, and manually verified fidelity-pass counts separately, plus sanitized failure categories and the parser version.
 
 ## Safe compatibility reporting
 

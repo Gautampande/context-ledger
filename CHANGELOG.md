@@ -2,9 +2,10 @@
 
 ## Unreleased — 1.2.0 correctness and evidence
 
-This release is gated on a transparent 20-share, manual-fidelity compatibility study. It does not add a new provider parser, browser automation, or cloud service.
+This release is gated on a transparent three-scenario, manual-fidelity live canary. Twenty manually compared shares remain a rolling confidence target before any broad-support claim. It does not add a new provider parser, browser automation, or cloud service.
 
 - Adds a privacy-preserving public-share study protocol that records only sanitized local outcomes and publishes aggregate compatibility evidence.
+- Publishes an initial three-scenario ChatGPT public-share canary: 3 attempted, 3 imported, and 3 manually verified fidelity passes. This is not a broad-compatibility claim.
 
 ## 1.1.2 — 2026-10-12
 

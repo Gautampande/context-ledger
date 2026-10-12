@@ -136,7 +136,8 @@ test("encryption accepts a maximum-size plaintext and rejects altered envelope m
   badKdf.kdf.N = 1;
   await assert.rejects(() => decryptArchive(JSON.stringify(badKdf), passphrase), SecurityError);
   const alteredCiphertext = JSON.parse(envelope);
-  alteredCiphertext.ciphertext = `A${alteredCiphertext.ciphertext.slice(1)}`;
+  const firstBase64Character = alteredCiphertext.ciphertext[0];
+  alteredCiphertext.ciphertext = `${firstBase64Character === "A" ? "B" : "A"}${alteredCiphertext.ciphertext.slice(1)}`;
   await assert.rejects(() => decryptArchive(JSON.stringify(alteredCiphertext), passphrase), SecurityError);
   passphrase.fill(0);
 });
