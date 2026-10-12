@@ -2,9 +2,12 @@ import { createHash } from "node:crypto";
 import { decodeUtf8, writeNewFile } from "./fs-safe.js";
 import { SecurityError, UsageError } from "./errors.js";
 
-const MAX_HTML_BYTES = 5 * 1024 * 1024;
+export const MAX_SHARED_PAGE_BYTES = 5 * 1024 * 1024;
+export const SHARED_SNAPSHOT_SCHEMA = "shared-snapshot/0.1";
 const TIMEOUT_MS = 10_000;
 const MAX_REDIRECTS = 3;
+const SNAPSHOT_FIELDS = new Set(["schema", "provider", "capturedAt", "sourceUrlSha256", "pageSha256", "byteLength", "parser", "warning"]);
+const SNAPSHOT_WARNING = "Opaque untrusted HTML snapshot. It has not been parsed into a conversation transcript.";
 
 const ALLOWED_SHARE_URLS = [
   { provider: "chatgpt", host: "chatgpt.com", prefix: "/share/" },
@@ -40,7 +43,7 @@ export function inspectApprovedSharedUrl(value) {
 
 async function readBoundedBody(response) {
   const advertisedLength = Number(response.headers.get("content-length"));
-  if (Number.isFinite(advertisedLength) && advertisedLength > MAX_HTML_BYTES) {
+  if (Number.isFinite(advertisedLength) && advertisedLength > MAX_SHARED_PAGE_BYTES) {
     throw new SecurityError("Shared page exceeds the 5 MiB safety limit.");
   }
   if (!response.body) throw new SecurityError("Shared page did not include a response body.");
@@ -52,7 +55,7 @@ async function readBoundedBody(response) {
       const { done, value } = await reader.read();
       if (done) break;
       total += value.byteLength;
-      if (total > MAX_HTML_BYTES) throw new SecurityError("Shared page exceeds the 5 MiB safety limit.");
+      if (total > MAX_SHARED_PAGE_BYTES) throw new SecurityError("Shared page exceeds the 5 MiB safety limit.");
       chunks.push(value);
     }
   } finally {
@@ -84,7 +87,7 @@ export async function fetchApprovedSharedPage(shareUrl, { fetchImpl = fetch, tim
         signal: aborter.signal,
         headers: {
           Accept: "text/html,application/xhtml+xml",
-          "User-Agent": "ContextLedger/1.1 public-snapshot",
+          "User-Agent": "ContextLedger/1.3 public-snapshot",
         },
       });
       if (response.status >= 300 && response.status < 400) {
@@ -131,14 +134,46 @@ export async function acquireSharedSnapshot(shareUrl, outputDirectory, options =
   const base = `${outputDirectory}/snapshot-${page.sourceHtmlSha256.slice(0, 16)}`;
   await writeNewFile(`${base}.html`, page.html);
   await writeNewFile(`${base}.json`, `${JSON.stringify({
-    schema: "shared-snapshot/0.1",
+    schema: SHARED_SNAPSHOT_SCHEMA,
     provider: page.provider,
     capturedAt: new Date().toISOString(),
     sourceUrlSha256: page.sourceUrlSha256,
     pageSha256: page.sourceHtmlSha256,
     byteLength: page.byteLength,
     parser: "none",
-    warning: "Opaque untrusted HTML snapshot. It has not been parsed into a conversation transcript.",
+    warning: SNAPSHOT_WARNING,
   }, null, 2)}\n`);
   return { provider: page.provider, htmlPath: `${base}.html`, metadataPath: `${base}.json`, pageSha256: page.sourceHtmlSha256 };
+}
+
+/**
+ * Validates metadata written by fetch-share. It binds a local snapshot pair to
+ * a byte count and digests, but cannot prove that an arbitrary local file was
+ * originally served by a provider.
+ */
+export function parseSharedSnapshotMetadata(text) {
+  let value;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    throw new SecurityError("Shared snapshot metadata is not valid JSON.");
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((key) => !SNAPSHOT_FIELDS.has(key))) {
+    throw new SecurityError("Shared snapshot metadata has unsupported fields.");
+  }
+  if (
+    value.schema !== SHARED_SNAPSHOT_SCHEMA ||
+    !["chatgpt", "claude", "gemini"].includes(value.provider) ||
+    typeof value.capturedAt !== "string" || Number.isNaN(Date.parse(value.capturedAt)) ||
+    !isSha256(value.sourceUrlSha256) || !isSha256(value.pageSha256) ||
+    !Number.isSafeInteger(value.byteLength) || value.byteLength < 1 || value.byteLength > MAX_SHARED_PAGE_BYTES ||
+    value.parser !== "none" || value.warning !== SNAPSHOT_WARNING
+  ) {
+    throw new SecurityError("Shared snapshot metadata is invalid.");
+  }
+  return value;
+}
+
+function isSha256(value) {
+  return typeof value === "string" && /^[0-9a-f]{64}$/u.test(value);
 }

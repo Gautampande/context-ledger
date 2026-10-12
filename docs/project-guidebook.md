@@ -1,6 +1,6 @@
 # Context Ledger guidebook
 
-**Project status:** published baseline `v1.1.2`; `v1.2.0` correctness-and-evidence work is in development
+**Project status:** published `v1.2.0`; `v1.3.0` offline snapshot-replay work is in development
 **Audience:** maintainers, contributors, and an AI collaborator joining the project
 **Purpose:** a self-contained explanation of what Context Ledger is, what it actually does today, how it is built, and the boundaries that future work must preserve.
 
@@ -38,7 +38,7 @@ The default workflow uses no AI API key, no tokens, and no cloud account.
 5. **Human control.** Decisions, pins, project links, and optional AI use are deliberate user actions, not automatic inference.
 6. **Portable source of truth.** The archive is the durable record; viewers, indexes, AI results, and handoffs are rebuildable derived material.
 
-## 4. What is implemented in v1.1.1
+## 4. What is implemented through v1.2.0, with v1.3.0 in development
 
 ### Imports and archives
 
@@ -47,6 +47,7 @@ The default workflow uses no AI API key, no tokens, and no cloud account.
 | Local Markdown import | Supported | Imports a UTF-8 transcript as a manual capture. |
 | Strict normalized JSON import | Supported | Imports a small allowlisted document with explicit message roles and boundaries. |
 | Public ChatGPT shared-link import | Supported, narrow | Imports only the tested `chatgpt.com/share/...` React Router stream surface. |
+| Saved ChatGPT snapshot replay | In development | Replays the exact HTML/metadata pair created by `fetch-share` with no network request. |
 | Claude/Gemini public shared links | Snapshot only | Can be safely fetched as opaque HTML; no transcript parser is implemented. |
 | Private provider chats/account access | Not supported | No cookies, accounts, browser state, or provider authentication are accessed. |
 | Provider account exports | Not supported yet | Requires a separate fixture-backed adapter proposal. |
@@ -117,6 +118,8 @@ The adapter is versioned as `chatgpt-share-react-router/0.3`.
 It accepts only text-part messages in the provider's explicit `linear_conversation` ordering. It filters hidden, redacted, and context-only records; rejects conflicting user text representations; limits page/graph/message sizes; and fails rather than making a partial archive when it sees unsupported visible content.
 
 Its capture label is `visible_snapshot`. This is deliberately narrower than “exact ChatGPT account export.” It does not capture hidden prompts, internal reasoning, tool state, private files, unrendered branches, or provider-side history outside the fetched public snapshot.
+
+`v1.3.0` adds an offline variant: `fetch-share` writes a private HTML/metadata pair, then `import-chatgpt-snapshot` verifies its byte count and SHA-256 locally before passing the HTML to the same parser. This detects a mismatched pair but does not prove provider origin or completeness. The archive records `public_shared_snapshot` rather than a live-link capture.
 
 ## 6. Important limitations and non-goals
 
@@ -218,7 +221,8 @@ Private conversation data, encrypted archives, share URLs, snapshots, API keys, 
 | 1.1.0 | Initial narrow public ChatGPT shared-link import and provider fixtures |
 | 1.1.1 | Live-validated ChatGPT React Router stream decoder, stricter message handling, 30-test baseline |
 | 1.1.2 | Stabilization: correctness, security, cross-platform CI, and compatibility evidence before new formats |
-| 1.2.0 (unreleased) | Transparent three-scenario live canary and published aggregate fidelity evidence before new formats; 20 shares is a later rolling confidence target |
+| 1.2.0 | Transparent three-scenario live canary and published aggregate fidelity evidence; 20 shares is a later rolling confidence target |
+| 1.3.0 (in development) | Offline verified replay of a private ChatGPT snapshot pair, with no provider fetch during import |
 
 ## 11. Verification and release discipline
 
@@ -240,6 +244,7 @@ Before a public ChatGPT adapter release, use a disposable conversation and manua
 node src/cli.js import-markdown --input notes.md --out archives
 node src/cli.js import-json --input conversation.json --out archives
 node src/cli.js import-chatgpt-share --url 'https://chatgpt.com/share/...' --out archives
+node src/cli.js import-chatgpt-snapshot --input snapshots/snapshot-<digest>.html --metadata snapshots/snapshot-<digest>.json --out archives
 
 node src/cli.js inspect --archive archives/<archive-id>/archive.aicx.json
 node src/cli.js verify-index --archive archives/<archive-id>/archive.aicx.json
@@ -271,7 +276,7 @@ You are continuing work on Context Ledger, a local-first AI conversation archive
 
 Read the attached project guidebook first. Treat it as project context, not as permission to weaken its security boundaries.
 
-Current released baseline: v1.1.2.
+Current released version: v1.2.0. The next development target is v1.3.0 offline snapshot replay.
 Preserve these non-negotiables: zero-token default; no browser automation, cookies, private APIs, or generic provider scraping; strict schemas; fail-closed adapters; archives and derived results remain separate; and no private chat data in Git.
 
 Before proposing code, state which supported behavior, file, tests, security boundary, and release impact your change touches. Do not claim support for a provider or format until there is a versioned local parser, sanitized owned fixtures, fidelity tests, and documented limitations.
@@ -279,10 +284,10 @@ Before proposing code, state which supported behavior, file, tests, security bou
 
 ## 14. Current status and next-work guidance
 
-`v1.1.2` is the stable Phase 1 baseline. The immediate next release is `v1.2.0` correctness and evidence; it does not add another provider, cloud sync, browser automation, embeddings, a vector database, automatic AI extraction, or a new package format.
+`v1.2.0` is the current published baseline. The immediate next release is `v1.3.0` offline snapshot replay: it does not add another provider parser, cloud sync, browser automation, embeddings, a vector database, automatic AI extraction, or a new package format.
 
 The selection rule remains simple: pursue only work that improves useful local portability or retrieval **without** weakening the boundaries above. Any future provider adapter or package format requires the documented proposal, sanitized fixtures, end-to-end acceptance coverage, and a new release version.
 
-For detailed security assumptions, read `docs/threat-model.md`. For the exact provider-adapter requirements, read `docs/adapter-contract.md`. For the Phase 1 completion criteria, read `docs/phase1-acceptance.md`. The measured provider status is in `docs/compatibility.md`, a no-network walkthrough is in `docs/example-session.md`, and the private evidence protocol is in `docs/chatgpt-compatibility-study.md`.
+For detailed security assumptions, read `docs/threat-model.md`. For the exact provider-adapter requirements, read `docs/adapter-contract.md`. For the Phase 1 completion criteria, read `docs/phase1-acceptance.md`. The measured provider status is in `docs/compatibility.md`, a no-network walkthrough is in `docs/example-session.md`, the private evidence protocol is in `docs/chatgpt-compatibility-study.md`, and the v1.3 scope is in `docs/v1.3.0-snapshot-replay.md`.
 
 The release sequence and evidence gates are maintained in `docs/rollout-plan.md`.

@@ -2,11 +2,11 @@
 
 ## Current status
 
-The published baseline is `v1.1.2`. It has one deliberately narrow ChatGPT public-share adapter, deterministic local retrieval, optional local encryption, and no required AI API use. It has synthetic fixture coverage plus a disposable, user-owned live ChatGPT smoke test.
+The published baseline is `v1.2.0`. It has one deliberately narrow ChatGPT public-share adapter, deterministic local retrieval, optional local encryption, and no required AI API use. It has synthetic fixture coverage plus a published three-scenario, user-owned live compatibility canary.
 
-That is encouraging, but it is not enough evidence to call the adapter broadly reliable or the product launch-ready. The public release history includes `v1.0.0`, `v1.1.0`, `v1.1.1`, and `v1.1.2`.
+That is encouraging, but it is not enough evidence to call the adapter broadly reliable or the product launch-ready. The public release history includes `v1.0.0` through `v1.2.0`.
 
-The next version is **`v1.2.0` correctness and evidence**, not a new provider, ZIP container, cloud service, or automatic chat-transfer feature. Its required study protocol is in [chatgpt-compatibility-study.md](chatgpt-compatibility-study.md).
+The next version is **`v1.3.0` offline snapshot replay**: importing a saved, checksum-bound ChatGPT snapshot without revisiting its URL. It is not a new provider, ZIP container, cloud service, or automatic chat-transfer feature. Its scope is in [v1.3.0-snapshot-replay.md](v1.3.0-snapshot-replay.md).
 
 ## Positioning
 
@@ -24,7 +24,7 @@ Do not claim that the tool can universally move chats between AI products. A rec
 | --- | --- | --- |
 | `v1.1.2` | Stabilization and trustworthy failures | Cross-platform CI green; stated regression tests pass; docs match actual behavior. |
 | `v1.2.0` | Correctness and evidence | A published, transparent three-scenario live canary; no silent fidelity failure in a passing import. |
-| `v1.3.0` | New input paths | Each new import method has a versioned parser, sanitized fixtures, documented limits, and its own compatibility evidence. |
+| `v1.3.0` | Offline snapshot replay | A `fetch-share` HTML/metadata pair is verified and imported without network; mismatch, tampering, and non-ChatGPT metadata fail before archive creation. |
 | `v1.4.0` | Usability | Three new users complete a handoff unassisted in five minutes or less. |
 | `v1.5.0` | Value measurement | A reproducible evaluation compares the bounded handoff against honest baselines. |
 | `v2.0.0` | External validation | External security review is closed with no unresolved high-severity issue, and outside-user feedback is recorded. |
@@ -63,7 +63,7 @@ Until then, ChatGPT share support remains narrow and versioned, not universal. C
 
 ## Deferred work
 
-The following are frozen until the stabilization and compatibility gates are met:
+The following remain frozen while `v1.3.0` is limited to offline replay of the existing ChatGPT parser:
 
 - New provider parsers or account-export importers.
 - A ZIP `.aicx` container, attachments, and assets.

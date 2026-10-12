@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased — 1.2.0 correctness and evidence
+## Unreleased — 1.3.0 offline snapshot replay
+
+This release adds a repeatable local import path for a ChatGPT public-share snapshot already captured with `fetch-share`. It does not add another provider parser, browser automation, account access, or an origin/provenance claim.
+
+- Adds `import-chatgpt-snapshot`, which verifies the local HTML byte count and SHA-256 against its strict `shared-snapshot/0.1` metadata before parsing.
+- Records snapshot replay distinctly as `public_shared_snapshot`; it makes no network request and retains only source URL and HTML digests, never the source URL.
+- Rejects a mismatched snapshot/metadata pair or non-ChatGPT snapshot metadata before an archive is written.
+
+## 1.2.0 — 2026-10-12
 
 This release is gated on a transparent three-scenario, manual-fidelity live canary. Twenty manually compared shares remain a rolling confidence target before any broad-support claim. It does not add a new provider parser, browser automation, or cloud service.
 

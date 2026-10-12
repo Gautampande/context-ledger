@@ -2,16 +2,17 @@
 
 `Context Ledger` is a local-first, Git-hosted tool for retaining and handing off one important AI conversation at a time. It preserves the imported transcript, builds a deterministic local index, and creates bounded continuation packets. Related-archive project graph support is separate and optional.
 
-It is deliberately **not** a universal ChatGPT/Claude/Gemini scraper. The published `v1.1.2` baseline includes one narrow adapter for the supported public ChatGPT shared-page React Router stream. The unreleased `v1.2.0` phase is collecting transparent compatibility evidence before any provider expansion. It preserves only verified visible text messages and fails closed on unsupported representations or visible artifacts. It is not a claim of full account-export fidelity.
+It is deliberately **not** a universal ChatGPT/Claude/Gemini scraper. Published `v1.2.0` includes one narrow adapter for the supported public ChatGPT shared-page React Router stream and a transparent initial compatibility canary. The `v1.3.0` development work adds offline replay of a locally captured ChatGPT snapshot, not another provider parser. It preserves only verified visible text messages and fails closed on unsupported representations or visible artifacts. It is not a claim of full account-export fidelity.
 
 For a full technical and product handoff—including architecture, current feature boundaries, security decisions, and a ready-to-use AI collaboration prompt—read the [project guidebook](docs/project-guidebook.md).
 
-## Current capability and `v1.2.0` evidence phase
+## Current capability and `v1.3.0` development
 
 - Exact UTF-8 Markdown import and strict normalized-JSON import.
 - Portable `aicx/0.3` JSON archive: immutable transcript, deterministic event projection, SHA-256 integrity fields, and readable companion files. Older `aicx/0.1` and `aicx/0.2` archives remain readable.
 - Token-free local inverted-index search, annotations, static offline viewer, and evidence-bounded continuation packets.
 - `import-chatgpt-share` for the supported `https://chatgpt.com/share/...` React Router stream surface. It creates an archive and index in one command, with no AI API key.
+- `import-chatgpt-snapshot` for a previously captured ChatGPT HTML/metadata pair. It verifies the pair locally, makes no network request, and creates the same bounded archive/index output.
 - Optional AES-256-GCM envelope encryption with scrypt-derived keys.
 - A constrained shared-link snapshot boundary: HTTPS allowlist, no cookies, no credentials, validated redirects, no scripts or asset downloads.
 - Optional bring-your-own-key AI summaries, extraction, and semantic retrieval. They are off by default and use no key or tokens until the user explicitly approves a plan.
@@ -99,12 +100,15 @@ Remote processing sends the selected archival text to the chosen provider. Check
 ```sh
 node src/cli.js fetch-share --url 'https://chatgpt.com/share/...' --out snapshots
 node src/cli.js import-chatgpt-share --url 'https://chatgpt.com/share/...' --out archives
+node src/cli.js import-chatgpt-snapshot --input snapshots/snapshot-<digest>.html --metadata snapshots/snapshot-<digest>.json --out archives
 node src/cli.js plugins
 ```
 
 `fetch-share` remains an acquisition boundary, not a parser: it stores raw allowed HTML with a digest of the URL and does not preserve the share URL itself. `import-chatgpt-share` is the one built-in provider importer. It accepts only a public `chatgpt.com/share/...` URL, decodes the supported embedded React Router `linear_conversation` stream without executing page code, and recognizes only verified visible text `user`/`assistant` messages. It rejects malformed pages, unknown message representations, and non-text artifacts rather than silently omitting them.
 
 The resulting capture metadata says `provider: "chatgpt"`, `capture_method: "public_shared_link"`, `completeness: "visible_snapshot"`, and `hidden_state_available: false`. It also records hashes of the source URL and fetched HTML, not the URL itself. Hidden prompts, internal reasoning, tool state, private files, unrendered variants, and provider history outside the fetched public snapshot are unavailable or unknown. See [the adapter contract](docs/adapter-contract.md) and [Phase 1 acceptance criteria](docs/phase1-acceptance.md).
+
+`import-chatgpt-snapshot` accepts only the HTML and `shared-snapshot/0.1` metadata emitted by `fetch-share`. It verifies the exact HTML byte count and SHA-256 before parsing, never accesses the original URL, and labels the result `capture_method: "public_shared_snapshot"`. A matching local pair does not prove provider origin or completeness; it is still untrusted historical data. See [the v1.3 snapshot-replay scope](docs/v1.3.0-snapshot-replay.md).
 
 The [Recorder SDK](docs/recorder-sdk.md) is the reliable “direct” route for a product that already owns a conversation’s message stream. It does not capture a provider’s consumer chat UI.
 

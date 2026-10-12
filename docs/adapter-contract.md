@@ -1,6 +1,6 @@
 # Provider adapter contract
 
-The `v1.2.0` evidence branch retains one deliberately narrow public-share adapter: `chatgpt-share-react-router/0.3`. A provider page, export format, or undocumented API is never treated as a stable contract by assumption. The adapter is supported only when the fetched public `https://chatgpt.com/share/...` HTML contains the versioned embedded stream it recognizes.
+Published `v1.2.0` retains one deliberately narrow public-share adapter: `chatgpt-share-react-router/0.3`. A provider page, export format, or undocumented API is never treated as a stable contract by assumption. The adapter is supported only when the fetched public `https://chatgpt.com/share/...` HTML contains the versioned embedded stream it recognizes.
 
 ## Built-in ChatGPT public-share adapter
 
@@ -24,6 +24,12 @@ It also records SHA-256 hashes of the source URL and fetched HTML. The source UR
 `visible_snapshot` means only the verified visible text from that HTTP response. It does not establish access to hidden prompts, internal reasoning, tool state, private files, unrendered branches/variants, or conversation history not in the fetched page. A changed provider DOM is an expected compatibility failure, not permission to guess or scrape another surface.
 
 The implementation and its fixtures are intentionally not a generic HTML-to-chat converter. Adding Claude, Gemini, a new ChatGPT layout, attachment extraction, or an account/export route requires a separate adapter proposal.
+
+## Offline ChatGPT snapshot replay
+
+`fetch-share` can write a private HTML file and `shared-snapshot/0.1` metadata record. `import-chatgpt-snapshot` accepts that pair only for `provider: "chatgpt"`. Before parsing, it reads both files safely, verifies the metadata's exact field set, checks the HTML byte count and SHA-256, then invokes the same versioned ChatGPT parser with no network request.
+
+An accepted replay archive records `capture_method: "public_shared_snapshot"` and the metadata's source URL and HTML digests. The source URL itself is not retained. The local digest pair detects a mismatched or accidentally changed snapshot, but it does **not** prove that a local file was served by ChatGPT, establish author identity, or establish completeness. Claude and Gemini snapshots remain opaque files until a dedicated adapter meets this contract.
 
 An adapter proposal must include:
 
