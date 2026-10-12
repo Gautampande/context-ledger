@@ -4,7 +4,7 @@
 
 Phase 1 is complete when one supported public AI conversation can be imported into a local archive that preserves the adapter-verified visible conversation, supports deterministic local search, manual annotations/pins, integrity verification, and deterministic continuation generation—without an AI API key.
 
-The published 1.2.0 surface is the versioned `chatgpt-share-react-router/0.3` adapter for public `https://chatgpt.com/share/...` pages whose fetched HTML exposes the recognized `linear_conversation` stream. This is intentionally narrower than “all ChatGPT conversations.”
+The current published `v1.3.0` surface is the versioned `chatgpt-share-react-router/0.3` adapter for public `https://chatgpt.com/share/...` pages whose fetched HTML exposes the recognized `linear_conversation` stream. This is intentionally narrower than “all ChatGPT conversations.”
 
 ## Automated acceptance coverage
 
@@ -34,7 +34,7 @@ Use a disposable conversation that contains no private data. Create a public Cha
 node src/cli.js import-chatgpt-share --url 'https://chatgpt.com/share/...' --out archives
 node src/cli.js verify-index --archive archives/<archive-id>/archive.aicx.json
 node src/cli.js search --archive archives/<archive-id>/archive.aicx.json --query '<known text>'
-node src/cli.js continue --archive archives/<archive-id>/archive.aicx.json --out handoff.md
+node src/cli.js handoff --archive archives/<archive-id>/archive.aicx.json --out reviewed-handoff.md
 ```
 
 Compare the generated `transcript.md` against the visible shared page. Stop and report a bug if a turn is missing, duplicated, reordered, merged, or materially altered. Do not “repair” an archive manually and describe it as an exact capture.
