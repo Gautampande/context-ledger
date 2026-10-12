@@ -2,7 +2,7 @@
 import path from "node:path";
 import { createAiPlan, invokeAiPlan } from "./lib/ai.js";
 import { createArchiveFromMarkdown, createArchiveFromNormalizedImport, addAnnotation, readAnnotations, readArchive, writeArchiveBundle } from "./lib/archive.js";
-import { importChatGptSharedConversation } from "./lib/chatgpt-share.js";
+import { importChatGptSharedConversation, importChatGptSharedSnapshot } from "./lib/chatgpt-share.js";
 import { expandEvidenceWindow, buildContinuationPacket } from "./lib/context.js";
 import { decryptArchive, encryptArchive, samePassphrase } from "./lib/crypto-envelope.js";
 import { SecurityError, UsageError } from "./lib/errors.js";
@@ -29,7 +29,7 @@ import { searchArchive } from "./lib/search.js";
 import { acquireSharedSnapshot } from "./lib/share-link.js";
 import { renderStaticViewer } from "./lib/viewer.js";
 
-const HELP = `Context Ledger 1.2 — local-first AI conversation archives
+const HELP = `Context Ledger 1.3 — local-first AI conversation archives
 
 Usage:
   import-markdown --input <file> --out <relative-directory>
@@ -44,6 +44,7 @@ Usage:
   decrypt --input <encrypted-file> --out <relative-file>
   fetch-share --url <supported-public-share-link> --out <relative-directory>
   import-chatgpt-share --url <https://chatgpt.com/share/...> --out <relative-directory>
+  import-chatgpt-snapshot --input <snapshot.html> --metadata <snapshot.json> --out <relative-directory>
   viewer --archive <file> --out <relative-html-file>
   ai-plan --archive <file> --provider <openai|anthropic|gemini|ollama> --model <model> --task <summary|extract|semantic> [--query <text>] [--max-input-chars <1000-200000>] [--max-output-tokens <16-8192>]
   ai-run --archive <file> --provider <openai|anthropic|gemini|ollama> --model <model> --task <summary|extract|semantic> --consent <plan-consent-id> --out <relative-ai-result-file> [--query <text>] [--max-input-chars <1000-200000>] [--max-output-tokens <16-8192>] [--allow-remote yes | --allow-local-ai yes]
@@ -306,6 +307,20 @@ async function commandImportChatGptShare(values) {
   });
 }
 
+async function commandImportChatGptSnapshot(values) {
+  const result = await importChatGptSharedSnapshot(one(values, "input"), one(values, "metadata"), one(values, "out"));
+  writeJson({
+    archiveId: result.archive.archiveId,
+    archive: result.bundle.archive,
+    index: result.index.path,
+    directory: result.bundle.directory,
+    capture: result.capture,
+    limitations: result.limitations,
+    aiCalls: 0,
+    networkRequests: 0,
+  });
+}
+
 async function commandViewer(values) {
   const archivePath = one(values, "archive");
   const archive = await readArchive(archivePath);
@@ -451,6 +466,7 @@ async function main() {
     decrypt: commandDecrypt,
     "fetch-share": commandFetchShare,
     "import-chatgpt-share": commandImportChatGptShare,
+    "import-chatgpt-snapshot": commandImportChatGptSnapshot,
     viewer: commandViewer,
     "ai-plan": commandAiPlan,
     "ai-run": commandAiRun,
@@ -480,6 +496,7 @@ async function main() {
     decrypt: ["input", "out"],
     "fetch-share": ["url", "out"],
     "import-chatgpt-share": ["url", "out"],
+    "import-chatgpt-snapshot": ["input", "metadata", "out"],
     viewer: ["archive", "out"],
     "ai-plan": ["archive", "provider", "model", "task", "query", "max-input-chars", "max-output-tokens"],
     "ai-run": ["archive", "provider", "model", "task", "query", "max-input-chars", "max-output-tokens", "consent", "out", "allow-remote", "allow-local-ai"],

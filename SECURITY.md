@@ -2,7 +2,7 @@
 
 ## Supported version
 
-The latest published Git release is `v1.1.2`. The `v1.2.0` compatibility-evidence work is unreleased until it is tested, tagged, and published. See the [rollout plan](docs/rollout-plan.md) for the current evidence gates.
+The latest published Git release is `v1.2.0`. The `v1.3.0` offline snapshot-replay work is unreleased until it is tested, tagged, and published. See the [rollout plan](docs/rollout-plan.md) for the current evidence gates.
 
 ## Reporting a vulnerability
 

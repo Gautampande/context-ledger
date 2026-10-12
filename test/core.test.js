@@ -7,12 +7,12 @@ import { test } from "node:test";
 import { promisify } from "node:util";
 import { addAnnotation, createArchiveFromMarkdown, createArchiveFromNormalizedImport, readAnnotations, readArchive, validateArchive, writeArchiveBundle } from "../src/lib/archive.js";
 import { createAiPlan, invokeAiPlan, validateAiPlan } from "../src/lib/ai.js";
-import { importChatGptSharedConversation, parseChatGptSharedHtml } from "../src/lib/chatgpt-share.js";
+import { importChatGptSharedConversation, importChatGptSharedSnapshot, parseChatGptSharedHtml } from "../src/lib/chatgpt-share.js";
 import { buildContinuationPacket, expandEvidenceWindow, truncateUtf8AtCodePointBoundary } from "../src/lib/context.js";
 import { decryptArchive, encryptArchive } from "../src/lib/crypto-envelope.js";
 import { SecurityError, UsageError } from "../src/lib/errors.js";
 import { resolveOutputPath } from "../src/lib/fs-safe.js";
-import { sha256Text } from "../src/lib/hash.js";
+import { sha256, sha256Text } from "../src/lib/hash.js";
 import { assertIndexMatchesArchive, buildInvertedIndex, readInvertedIndex, searchInvertedIndex, validateInvertedIndex, verifyInvertedIndex } from "../src/lib/inverted-index.js";
 import { parseNormalizedImport } from "../src/lib/normalized-import.js";
 import { addRepositoryArtifact, buildProjectHandoff, canonicalArchiveSha256, createProject, addProjectEdge, validateProject, verifyProject } from "../src/lib/project-graph.js";
@@ -732,6 +732,88 @@ test("ChatGPT public-share import completes the no-AI end-to-end workflow and re
     assert.ok(reopenedIndex);
     assert.equal(searchInvertedIndex(reopened, reopenedIndex, "OAuth").length, 2);
     assert.match(buildContinuationPacket(reopened, { items: [] }), /Auth design discussion/u);
+  } finally {
+    process.chdir(originalDirectory);
+    await rm(testDirectory, { recursive: true, force: true });
+  }
+});
+
+test("ChatGPT snapshot import is offline, checksum-bound, and rejects mismatched metadata", { concurrency: false }, async () => {
+  const html = reactRouterSharePage([
+    routerMessage({ id: "user-1", role: "user", text: "Capture once, import later.", time: 10 }),
+    routerMessage({ id: "assistant-1", role: "assistant", text: "Verify the saved HTML before parsing it. 🔐", time: 11 }),
+  ], "Offline snapshot replay");
+  const htmlBytes = Buffer.from(html, "utf8");
+  const metadata = {
+    schema: "shared-snapshot/0.1",
+    provider: "chatgpt",
+    capturedAt: "2026-10-12T00:00:00.000Z",
+    sourceUrlSha256: "a".repeat(64),
+    pageSha256: sha256(htmlBytes),
+    byteLength: htmlBytes.byteLength,
+    parser: "none",
+    warning: "Opaque untrusted HTML snapshot. It has not been parsed into a conversation transcript.",
+  };
+  const testDirectory = await mkdtemp(path.join(os.tmpdir(), "context-ledger-snapshot-"));
+  const originalDirectory = process.cwd();
+  try {
+    process.chdir(testDirectory);
+    const fetchedSnapshot = await acquireSharedSnapshot(
+      "https://chatgpt.com/share/11111111-1111-4111-8111-111111111111",
+      "fetched-snapshot",
+      {
+        fetchImpl: async () => new Response(html, {
+          status: 200,
+          headers: { "content-type": "text/html; charset=utf-8" },
+        }),
+      },
+    );
+    const replayedFetch = await importChatGptSharedSnapshot(
+      fetchedSnapshot.htmlPath,
+      fetchedSnapshot.metadataPath,
+      "fetched-output",
+    );
+    assert.equal(replayedFetch.archive.capture.capture_method, "public_shared_snapshot");
+    await writeFile("snapshot.html", htmlBytes);
+    await writeFile("snapshot.json", `${JSON.stringify(metadata)}\n`);
+
+    const imported = await importChatGptSharedSnapshot("snapshot.html", "snapshot.json", "archive-output");
+    assert.equal(imported.archive.capture.method, "public_shared_snapshot");
+    assert.equal(imported.archive.capture.capture_method, "public_shared_snapshot");
+    assert.equal(imported.archive.capture.source_html_sha256, metadata.pageSha256);
+    assert.equal(imported.archive.capture.source_url_sha256, metadata.sourceUrlSha256);
+    assert.equal(imported.archive.events.length, 2);
+    assert.doesNotThrow(() => validateArchive(imported.archive));
+    const conflictingCaptureMethod = structuredClone(imported.archive);
+    conflictingCaptureMethod.capture.capture_method = "public_shared_link";
+    assert.throws(() => validateArchive(conflictingCaptureMethod), SecurityError);
+
+    const cliResult = await runCli([
+      "import-chatgpt-snapshot",
+      "--input", "snapshot.html",
+      "--metadata", "snapshot.json",
+      "--out", "cli-output",
+    ], testDirectory);
+    assert.equal(cliResult.aiCalls, 0);
+    assert.equal(cliResult.networkRequests, 0);
+    assert.equal(cliResult.capture.capture_method, "public_shared_snapshot");
+
+    await writeFile("mismatched.json", `${JSON.stringify({ ...metadata, pageSha256: "0".repeat(64) })}\n`);
+    await assert.rejects(
+      () => importChatGptSharedSnapshot("snapshot.html", "mismatched.json", "must-not-exist"),
+      SecurityError,
+    );
+    await writeFile("claude.json", `${JSON.stringify({ ...metadata, provider: "claude" })}\n`);
+    await assert.rejects(
+      () => importChatGptSharedSnapshot("snapshot.html", "claude.json", "must-not-exist"),
+      UsageError,
+    );
+    await writeFile("extra-field.json", `${JSON.stringify({ ...metadata, untrustedField: true })}\n`);
+    await assert.rejects(
+      () => importChatGptSharedSnapshot("snapshot.html", "extra-field.json", "must-not-exist"),
+      SecurityError,
+    );
+    await assert.rejects(() => lstat("must-not-exist"), { code: "ENOENT" });
   } finally {
     process.chdir(originalDirectory);
     await rm(testDirectory, { recursive: true, force: true });

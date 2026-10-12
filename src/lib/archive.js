@@ -31,6 +31,7 @@ const SHARED_CAPTURE_FIELDS = new Set([
   "parser",
 ]);
 const SHARED_PARSERS = new Set(["chatgpt-share-dom/0.1", "chatgpt-share-react-router/0.2", "chatgpt-share-react-router/0.3"]);
+const SHARED_CAPTURE_METHODS = new Set(["public_shared_link", "public_shared_snapshot"]);
 const TRANSCRIPT_FIELDS = new Set(["encoding", "byteLength", "sha256", "content"]);
 const EVENT_FIELDS = new Set(["id", "sequence", "role", "content", "contentSha256"]);
 const ANNOTATION_FIELDS = new Set(["eventId", "kind", "note", "createdAt"]);
@@ -130,7 +131,7 @@ export function createArchiveFromSharedConversation(document, source) {
   validateNormalizedImport(document);
   if (
     source?.provider !== "chatgpt" ||
-    source.captureMethod !== "public_shared_link" ||
+    !SHARED_CAPTURE_METHODS.has(source.captureMethod) ||
     source.completeness !== "visible_snapshot" ||
     source.hiddenStateAvailable !== false ||
     !isSha256(source.sourceUrlSha256) ||
@@ -152,10 +153,10 @@ export function createArchiveFromSharedConversation(document, source) {
     createdAt: new Date().toISOString(),
     title: document.title,
     capture: {
-      method: "public_shared_link",
+      method: source.captureMethod,
       confidence: "visible_snapshot",
       provider: "chatgpt",
-      capture_method: "public_shared_link",
+      capture_method: source.captureMethod,
       completeness: "visible_snapshot",
       hidden_state_available: false,
       source_url_sha256: source.sourceUrlSha256,
@@ -237,7 +238,7 @@ export function validateArchive(value) {
   assertPlainObject(value.capture, "Archive capture metadata");
   const isManual = value.capture.method === "manual" && value.capture.confidence === "manual";
   const isNormalized = value.schema !== "aicx/0.1" && value.capture.method === "normalized_json" && value.capture.confidence === "normalized_json";
-  const isShared = value.schema === ARCHIVE_SCHEMA && value.capture.method === "public_shared_link" && value.capture.confidence === "visible_snapshot";
+  const isShared = value.schema === ARCHIVE_SCHEMA && SHARED_CAPTURE_METHODS.has(value.capture.method) && value.capture.confidence === "visible_snapshot";
   if (!isManual && !isNormalized && !isShared) throw new SecurityError("Archive capture metadata is invalid.");
   assertOnlyFields(
     value.capture,
@@ -252,7 +253,8 @@ export function validateArchive(value) {
   }
   if (isShared && (
     value.capture.provider !== "chatgpt" ||
-    value.capture.capture_method !== "public_shared_link" ||
+    value.capture.capture_method !== value.capture.method ||
+    !SHARED_CAPTURE_METHODS.has(value.capture.capture_method) ||
     value.capture.completeness !== "visible_snapshot" ||
     value.capture.hidden_state_available !== false ||
     !isSha256(value.capture.source_url_sha256) ||

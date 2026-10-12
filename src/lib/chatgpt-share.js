@@ -1,7 +1,9 @@
 import { createArchiveFromSharedConversation, writeArchiveBundle } from "./archive.js";
 import { SecurityError, UsageError } from "./errors.js";
+import { decodeUtf8, readSafeFile, readSafeUtf8 } from "./fs-safe.js";
+import { sha256 } from "./hash.js";
 import { buildInvertedIndex, writeInvertedIndex } from "./inverted-index.js";
-import { fetchApprovedSharedPage, inspectApprovedSharedUrl } from "./share-link.js";
+import { fetchApprovedSharedPage, inspectApprovedSharedUrl, MAX_SHARED_PAGE_BYTES, parseSharedSnapshotMetadata } from "./share-link.js";
 import { truncateTitle } from "./transcript.js";
 
 export const CHATGPT_SHARE_PARSER = "chatgpt-share-react-router/0.3";
@@ -10,6 +12,7 @@ const MAX_HTML_CHARACTERS = 5 * 1024 * 1024;
 const MAX_STREAM_CHUNKS = 16;
 const MAX_FLAT_GRAPH_ENTRIES = 100_000;
 const MAX_GRAPH_DEPTH = 200;
+const MAX_SNAPSHOT_METADATA_BYTES = 64 * 1024;
 const CUSTOM_INSTRUCTIONS_PLACEHOLDER = "Original custom instructions no longer available";
 const UNSAFE_CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u;
 const MESSAGE_OPEN_TAG = /<(article|div)\b([^>]*?\bdata-message-author-role\s*=\s*(["'])([^"']+)\3[^>]*)>/giu;
@@ -399,5 +402,44 @@ export async function importChatGptSharedConversation(shareUrl, outputDirectory,
     index,
     capture: archive.capture,
     limitations: parsed.limitations,
+  };
+}
+
+/**
+ * Replays a local pair created by fetch-share. No URL is read, fetched, or
+ * persisted during this path; the snapshot metadata must match the exact HTML
+ * bytes before the provider parser sees it.
+ */
+export async function importChatGptSharedSnapshot(snapshotPath, metadataPath, outputDirectory) {
+  const htmlBytes = await readSafeFile(snapshotPath, MAX_SHARED_PAGE_BYTES);
+  const metadata = parseSharedSnapshotMetadata(await readSafeUtf8(metadataPath, MAX_SNAPSHOT_METADATA_BYTES));
+  if (metadata.provider !== "chatgpt") {
+    throw new UsageError("import-chatgpt-snapshot accepts only ChatGPT snapshot metadata.");
+  }
+  if (metadata.byteLength !== htmlBytes.byteLength || metadata.pageSha256 !== sha256(htmlBytes)) {
+    throw new SecurityError("Shared snapshot HTML does not match its metadata; no archive was created.");
+  }
+  const parsed = parseChatGptSharedHtml(decodeUtf8(htmlBytes, "ChatGPT shared snapshot"));
+  const archive = createArchiveFromSharedConversation(parsed.document, {
+    provider: "chatgpt",
+    captureMethod: "public_shared_snapshot",
+    completeness: "visible_snapshot",
+    hiddenStateAvailable: false,
+    sourceUrlSha256: metadata.sourceUrlSha256,
+    sourceHtmlSha256: metadata.pageSha256,
+    parser: parsed.parser,
+  });
+  const prebuiltIndex = buildInvertedIndex(archive);
+  const bundle = await writeArchiveBundle(archive, outputDirectory);
+  const index = await writeInvertedIndex(bundle.archive, archive, prebuiltIndex);
+  return {
+    archive,
+    bundle,
+    index,
+    capture: archive.capture,
+    limitations: {
+      ...parsed.limitations,
+      snapshot: "Local snapshot byte count and SHA-256 were verified before parsing. Its provider origin cannot be proven from local files alone.",
+    },
   };
 }
