@@ -8,7 +8,7 @@ import { promisify } from "node:util";
 import { addAnnotation, createArchiveFromMarkdown, createArchiveFromNormalizedImport, readAnnotations, readArchive, validateArchive, writeArchiveBundle } from "../src/lib/archive.js";
 import { createAiPlan, invokeAiPlan, validateAiPlan } from "../src/lib/ai.js";
 import { importChatGptSharedConversation, importChatGptSharedSnapshot, parseChatGptSharedHtml } from "../src/lib/chatgpt-share.js";
-import { buildContinuationPacket, expandEvidenceWindow, truncateUtf8AtCodePointBoundary } from "../src/lib/context.js";
+import { buildContinuationPacket, buildGuidedHandoff, expandEvidenceWindow, truncateUtf8AtCodePointBoundary } from "../src/lib/context.js";
 import { decryptArchive, encryptArchive } from "../src/lib/crypto-envelope.js";
 import { SecurityError, UsageError } from "../src/lib/errors.js";
 import { resolveOutputPath } from "../src/lib/fs-safe.js";
@@ -67,6 +67,16 @@ test("search is deterministic and context includes evidence IDs", () => {
   const packet = buildContinuationPacket(archive, { items: [] }, [archive.events[0].id]);
   assert.match(packet, new RegExp(archive.events[0].id, "u"));
   assert.match(packet, /untrusted historical data/u);
+});
+
+test("guided handoff keeps historical evidence bounded and explicitly untrusted", () => {
+  const archive = createArchiveFromMarkdown(transcript);
+  const handoff = buildGuidedHandoff(archive, { items: [] }, [archive.events[1].id]);
+  assert.match(handoff, /For the person moving this work/u);
+  assert.match(handoff, /Instruction for the receiving assistant/u);
+  assert.match(handoff, /untrusted historical reference material/u);
+  assert.match(handoff, new RegExp(archive.events[1].id, "u"));
+  assert.doesNotMatch(handoff, new RegExp(archive.events[0].content.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
 });
 
 test("verified inverted index finds conjunctions without transcript scanning", () => {
@@ -188,6 +198,41 @@ test("CLI rejects an index that exceeds limits before writing an archive bundle"
     );
     await assert.rejects(() => lstat(path.join(testDirectory, "failed-output")));
   } finally {
+    await rm(testDirectory, { recursive: true, force: true });
+  }
+});
+
+test("CLI creates a guided handoff without AI or network access", { concurrency: false }, async () => {
+  const testDirectory = await mkdtemp(path.join(os.tmpdir(), "context-ledger-handoff-"));
+  const originalDirectory = process.cwd();
+  try {
+    process.chdir(testDirectory);
+    const archive = createArchiveFromMarkdown(transcript);
+    const bundle = await writeArchiveBundle(archive, "archives");
+    const result = await runCli([
+      "handoff",
+      "--archive", bundle.archive,
+      "--out", "reviewed-handoff.md",
+      "--select", archive.events[1].id,
+    ], testDirectory);
+    assert.equal(result.aiCalls, 0);
+    assert.equal(result.networkRequests, 0);
+    assert.equal(result.retrieval, "explicit-or-recent");
+    const handoff = await readFile(result.handoff, "utf8");
+    assert.match(handoff, /For the person moving this work/u);
+    assert.match(handoff, new RegExp(archive.events[1].id, "u"));
+    await assert.rejects(
+      () => runCli([
+        "handoff",
+        "--archive", bundle.archive,
+        "--out", "invalid-handoff.md",
+        "--select", archive.events[0].id,
+        "--query", "PKCE",
+      ], testDirectory),
+      (error) => /either --query or --select/u.test(error.stderr),
+    );
+  } finally {
+    process.chdir(originalDirectory);
     await rm(testDirectory, { recursive: true, force: true });
   }
 });

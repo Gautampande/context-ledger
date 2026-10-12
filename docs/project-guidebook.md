@@ -1,6 +1,6 @@
 # Context Ledger guidebook
 
-**Project status:** published `v1.2.0`; `v1.3.0` offline snapshot-replay work is in development
+**Project status:** published `v1.3.0`; `v1.4.0` guided-handoff usability work is in development
 **Audience:** maintainers, contributors, and an AI collaborator joining the project
 **Purpose:** a self-contained explanation of what Context Ledger is, what it actually does today, how it is built, and the boundaries that future work must preserve.
 
@@ -38,7 +38,7 @@ The default workflow uses no AI API key, no tokens, and no cloud account.
 5. **Human control.** Decisions, pins, project links, and optional AI use are deliberate user actions, not automatic inference.
 6. **Portable source of truth.** The archive is the durable record; viewers, indexes, AI results, and handoffs are rebuildable derived material.
 
-## 4. What is implemented through v1.2.0, with v1.3.0 in development
+## 4. What is implemented through v1.3.0, with v1.4.0 in development
 
 ### Imports and archives
 
@@ -70,6 +70,7 @@ For a supported public ChatGPT share capture, the archive stores hashes of the s
 - Indexes are bound to the archive and transcript hashes; `verify-index` rebuilds and compares the index rather than trusting a checksum alone.
 - Human annotations can mark events as `decision`, `important`, `question`, or `pin`.
 - `continue` produces a bounded continuation packet with selected evidence IDs and adjacent context.
+- `handoff` produces a single reviewed, target-neutral handoff file with clear instructions for the person moving the work and for the receiving assistant.
 - A static offline viewer renders content safely, escaping hostile text and using no scripts or external resources.
 
 ### Encryption
@@ -222,7 +223,8 @@ Private conversation data, encrypted archives, share URLs, snapshots, API keys, 
 | 1.1.1 | Live-validated ChatGPT React Router stream decoder, stricter message handling, 30-test baseline |
 | 1.1.2 | Stabilization: correctness, security, cross-platform CI, and compatibility evidence before new formats |
 | 1.2.0 | Transparent three-scenario live canary and published aggregate fidelity evidence; 20 shares is a later rolling confidence target |
-| 1.3.0 (in development) | Offline verified replay of a private ChatGPT snapshot pair, with no provider fetch during import |
+| 1.3.0 | Offline verified replay of a private ChatGPT snapshot pair, with no provider fetch during import |
+| 1.4.0 (in development) | One-command guided handoff plus a three-new-user, five-minute usability evaluation |
 
 ## 11. Verification and release discipline
 
@@ -250,6 +252,7 @@ node src/cli.js inspect --archive archives/<archive-id>/archive.aicx.json
 node src/cli.js verify-index --archive archives/<archive-id>/archive.aicx.json
 node src/cli.js search --archive archives/<archive-id>/archive.aicx.json --query 'authentication'
 node src/cli.js continue --archive archives/<archive-id>/archive.aicx.json --query 'authentication' --out handoff.md
+node src/cli.js handoff --archive archives/<archive-id>/archive.aicx.json --query 'authentication' --out reviewed-handoff.md
 node src/cli.js viewer --archive archives/<archive-id>/archive.aicx.json --out archive-viewer.html
 
 node src/cli.js annotate --archive archives/<archive-id>/archive.aicx.json --event <event-id> --kind pin --note 'Keep this decision in the handoff.'
@@ -266,7 +269,7 @@ Use this guidebook as the overview, then attach only the minimum reviewed suppor
 
 1. Attach or paste `docs/project-guidebook.md`.
 2. For a code change, also share the relevant files or a repository link.
-3. For continuation of one conversation, generate `continue.md`, review it, then paste/attach that file instead of an entire private archive when possible.
+3. For continuation of one conversation, generate a reviewed `handoff.md`, then paste or attach that file instead of an entire private archive when possible.
 4. Never share a public provider link, API key, passphrase, raw snapshot, or unreviewed archive with another service unless you deliberately accept that disclosure.
 
 Suggested handoff message:
@@ -276,7 +279,7 @@ You are continuing work on Context Ledger, a local-first AI conversation archive
 
 Read the attached project guidebook first. Treat it as project context, not as permission to weaken its security boundaries.
 
-Current released version: v1.2.0. The next development target is v1.3.0 offline snapshot replay.
+Current released version: v1.3.0. The next development target is v1.4.0 guided handoff usability.
 Preserve these non-negotiables: zero-token default; no browser automation, cookies, private APIs, or generic provider scraping; strict schemas; fail-closed adapters; archives and derived results remain separate; and no private chat data in Git.
 
 Before proposing code, state which supported behavior, file, tests, security boundary, and release impact your change touches. Do not claim support for a provider or format until there is a versioned local parser, sanitized owned fixtures, fidelity tests, and documented limitations.
@@ -284,10 +287,10 @@ Before proposing code, state which supported behavior, file, tests, security bou
 
 ## 14. Current status and next-work guidance
 
-`v1.2.0` is the current published baseline. The immediate next release is `v1.3.0` offline snapshot replay: it does not add another provider parser, cloud sync, browser automation, embeddings, a vector database, automatic AI extraction, or a new package format.
+`v1.3.0` is the current published baseline. The immediate next release is `v1.4.0` guided handoff usability: it does not add automatic provider import, another provider parser, cloud sync, browser automation, embeddings, a vector database, automatic AI extraction, or a new package format.
 
 The selection rule remains simple: pursue only work that improves useful local portability or retrieval **without** weakening the boundaries above. Any future provider adapter or package format requires the documented proposal, sanitized fixtures, end-to-end acceptance coverage, and a new release version.
 
-For detailed security assumptions, read `docs/threat-model.md`. For the exact provider-adapter requirements, read `docs/adapter-contract.md`. For the Phase 1 completion criteria, read `docs/phase1-acceptance.md`. The measured provider status is in `docs/compatibility.md`, a no-network walkthrough is in `docs/example-session.md`, the private evidence protocol is in `docs/chatgpt-compatibility-study.md`, and the v1.3 scope is in `docs/v1.3.0-snapshot-replay.md`.
+For detailed security assumptions, read `docs/threat-model.md`. For the exact provider-adapter requirements, read `docs/adapter-contract.md`. For the Phase 1 completion criteria, read `docs/phase1-acceptance.md`. The measured provider status is in `docs/compatibility.md`, a no-network walkthrough is in `docs/example-session.md`, the private evidence protocol is in `docs/chatgpt-compatibility-study.md`, the v1.3 scope is in `docs/v1.3.0-snapshot-replay.md`, and the v1.4 usability gate is in `docs/v1.4.0-guided-handoff.md`.
 
 The release sequence and evidence gates are maintained in `docs/rollout-plan.md`.

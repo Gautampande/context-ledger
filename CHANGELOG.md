@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased — 1.3.0 offline snapshot replay
+## Unreleased — 1.4.0 guided handoff
+
+This release focuses on making the existing local archive-to-new-chat workflow understandable without adding an automatic provider import claim.
+
+- Adds `handoff`, a zero-token, zero-network command that creates one reviewed Markdown file ready to paste or attach in another AI chat.
+- Keeps the source evidence bounded, retains archive/event identifiers, and tells both the person and receiving assistant how to treat historical text safely.
+- Adds a documented usability evaluation protocol. `v1.4.0` is not considered ready until three new users complete the handoff workflow without maintainer assistance in five minutes or less.
+
+## 1.3.0 — 2026-10-12
 
 This release adds a repeatable local import path for a ChatGPT public-share snapshot already captured with `fetch-share`. It does not add another provider parser, browser automation, account access, or an origin/provenance claim.
 

@@ -3,7 +3,7 @@ import path from "node:path";
 import { createAiPlan, invokeAiPlan } from "./lib/ai.js";
 import { createArchiveFromMarkdown, createArchiveFromNormalizedImport, addAnnotation, readAnnotations, readArchive, writeArchiveBundle } from "./lib/archive.js";
 import { importChatGptSharedConversation, importChatGptSharedSnapshot } from "./lib/chatgpt-share.js";
-import { expandEvidenceWindow, buildContinuationPacket } from "./lib/context.js";
+import { expandEvidenceWindow, buildContinuationPacket, buildGuidedHandoff } from "./lib/context.js";
 import { decryptArchive, encryptArchive, samePassphrase } from "./lib/crypto-envelope.js";
 import { SecurityError, UsageError } from "./lib/errors.js";
 import { readSafeFile, readSafeUtf8, writeNewFile } from "./lib/fs-safe.js";
@@ -29,7 +29,7 @@ import { searchArchive } from "./lib/search.js";
 import { acquireSharedSnapshot } from "./lib/share-link.js";
 import { renderStaticViewer } from "./lib/viewer.js";
 
-const HELP = `Context Ledger 1.3 — local-first AI conversation archives
+const HELP = `Context Ledger 1.4 — local-first AI conversation archives
 
 Usage:
   import-markdown --input <file> --out <relative-directory>
@@ -40,6 +40,7 @@ Usage:
   search --archive <file> --query <text>
   annotate --archive <file> --event <event-id> --kind <decision|important|question|pin> --note <text>
   continue --archive <file> --out <relative-file> [--select <event-id> ... | --query <text>]
+  handoff --archive <file> --out <relative-file> [--select <event-id> ... | --query <text>]
   encrypt --input <archive-file> --out <relative-file>
   decrypt --input <encrypted-file> --out <relative-file>
   fetch-share --url <supported-public-share-link> --out <relative-directory>
@@ -262,6 +263,33 @@ async function commandContinue(values) {
   writeJson({ continuation: output, retrieval, aiCalls: 0 });
 }
 
+async function commandHandoff(values) {
+  const archivePath = one(values, "archive");
+  const archive = await readArchive(archivePath);
+  const annotations = await readAnnotations(archivePath, archive);
+  const explicitlySelected = many(values, "select");
+  const query = one(values, "query", { optional: true });
+  if (query && explicitlySelected.length > 0) {
+    throw new UsageError("Use either --query or --select for a handoff, not both.");
+  }
+  let selected = explicitlySelected;
+  let retrieval = "explicit-or-recent";
+  if (query) {
+    const index = await readInvertedIndex(archivePath, archive);
+    const results = index ? searchInvertedIndex(archive, index, query) : searchArchive(archive, query);
+    selected = expandEvidenceWindow(archive, results.slice(0, 7).map((result) => result.id));
+    retrieval = index ? "checksum-bound-inverted-index" : "direct-scan";
+  }
+  const output = await writeNewFile(one(values, "out"), buildGuidedHandoff(archive, annotations, selected));
+  writeJson({
+    handoff: output,
+    retrieval,
+    aiCalls: 0,
+    networkRequests: 0,
+    nextStep: "Review this file, then paste or attach it in a new chat using that product's normal interface.",
+  });
+}
+
 async function commandEncrypt(values) {
   const plaintext = await readSafeFile(one(values, "input"), 12 * 1024 * 1024);
   const first = await readPassphrase("Passphrase: ");
@@ -462,6 +490,7 @@ async function main() {
     search: commandSearch,
     annotate: commandAnnotate,
     continue: commandContinue,
+    handoff: commandHandoff,
     encrypt: commandEncrypt,
     decrypt: commandDecrypt,
     "fetch-share": commandFetchShare,
@@ -492,6 +521,7 @@ async function main() {
     search: ["archive", "query"],
     annotate: ["archive", "event", "kind", "note"],
     continue: ["archive", "out", "select", "query"],
+    handoff: ["archive", "out", "select", "query"],
     encrypt: ["input", "out"],
     decrypt: ["input", "out"],
     "fetch-share": ["url", "out"],
