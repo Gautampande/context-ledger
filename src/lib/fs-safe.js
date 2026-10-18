@@ -122,6 +122,25 @@ export async function ensurePrivateDirectory(relativePath) {
   return destination;
 }
 
+/**
+ * Creates a private directory only when it does not already exist. Multi-file
+ * derived bundles use this to avoid silently mixing outputs from two runs.
+ */
+export async function createNewPrivateDirectory(relativePath) {
+  const destination = await resolveOutputPath(relativePath);
+  const parent = path.dirname(destination);
+  await mkdir(parent, { recursive: true, mode: 0o700 });
+  await assertExistingPathHasNoSymlink(parent);
+  try {
+    await mkdir(destination, { mode: 0o700 });
+  } catch (error) {
+    if (error?.code === "EEXIST") throw new SecurityError("Output directory already exists.");
+    throw error;
+  }
+  await assertExistingPathHasNoSymlink(destination);
+  return destination;
+}
+
 export async function writeNewFile(relativePath, data) {
   const destination = await resolveOutputPath(relativePath);
   const parent = path.dirname(destination);

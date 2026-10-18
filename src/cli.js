@@ -6,7 +6,8 @@ import { importChatGptSharedConversation, importChatGptSharedSnapshot } from "./
 import { expandEvidenceWindow, buildContinuationPacket, buildGuidedHandoff } from "./lib/context.js";
 import { decryptArchive, encryptArchive, samePassphrase } from "./lib/crypto-envelope.js";
 import { SecurityError, UsageError } from "./lib/errors.js";
-import { readSafeFile, readSafeUtf8, writeNewFile } from "./lib/fs-safe.js";
+import { createNewPrivateDirectory, readSafeFile, readSafeUtf8, writeNewFile } from "./lib/fs-safe.js";
+import { buildHandoffEvaluation } from "./lib/handoff-evaluation.js";
 import { buildInvertedIndex, readInvertedIndex, searchInvertedIndex, verifyInvertedIndex, writeInvertedIndex } from "./lib/inverted-index.js";
 import { parseNormalizedImport } from "./lib/normalized-import.js";
 import {
@@ -29,7 +30,7 @@ import { searchArchive } from "./lib/search.js";
 import { acquireSharedSnapshot } from "./lib/share-link.js";
 import { renderStaticViewer } from "./lib/viewer.js";
 
-const HELP = `Context Ledger 1.4 — local-first AI conversation archives
+const HELP = `Context Ledger 1.5 — local-first AI conversation archives
 
 Usage:
   import-markdown --input <file> --out <relative-directory>
@@ -41,6 +42,7 @@ Usage:
   annotate --archive <file> --event <event-id> --kind <decision|important|question|pin> --note <text>
   continue --archive <file> --out <relative-file> [--select <event-id> ... | --query <text>]
   handoff --archive <file> --out <relative-file> [--select <event-id> ... | --query <text>]
+  evaluate-handoff --archive <file> --query <text> --task <text> --out <new-relative-directory>
   encrypt --input <archive-file> --out <relative-file>
   decrypt --input <encrypted-file> --out <relative-file>
   fetch-share --url <supported-public-share-link> --out <relative-directory>
@@ -290,6 +292,47 @@ async function commandHandoff(values) {
   });
 }
 
+async function commandEvaluateHandoff(values) {
+  const archivePath = one(values, "archive");
+  const archive = await readArchive(archivePath);
+  const query = one(values, "query");
+  const task = one(values, "task");
+  const index = await readInvertedIndex(archivePath, archive);
+  const results = index ? searchInvertedIndex(archive, index, query) : searchArchive(archive, query);
+  const selectedIds = expandEvidenceWindow(archive, results.slice(0, 7).map((result) => result.id));
+  const selectedEvents = (selectedIds.length > 0 ? selectedIds : archive.events.slice(-8).map((event) => event.id))
+    .map((id) => archive.events.find((event) => event.id === id))
+    .filter(Boolean);
+  const retrieval = results.length === 0
+    ? `${index ? "checksum-bound-inverted-index" : "direct-scan"}-no-match-recent-fallback`
+    : index ? "checksum-bound-inverted-index" : "direct-scan";
+  const evaluation = buildHandoffEvaluation(archive, {
+    query,
+    task,
+    retrieval,
+    selectedEvents,
+    handoffContent: buildGuidedHandoff(archive, { items: [] }, selectedEvents.map((event) => event.id)),
+  });
+  const outputDirectory = one(values, "out");
+  await createNewPrivateDirectory(outputDirectory);
+  const handoff = await writeNewFile(path.join(outputDirectory, "retrieval-handoff.md"), evaluation.handoffContent);
+  const rawTail = await writeNewFile(path.join(outputDirectory, "raw-tail-baseline.md"), evaluation.rawTailContent);
+  const instructions = await writeNewFile(path.join(outputDirectory, "evaluator-instructions.md"), evaluation.evaluatorInstructions);
+  const manifest = await writeNewFile(path.join(outputDirectory, "evaluation-manifest.json"), evaluation.manifest);
+  writeJson({
+    evaluationDirectory: path.resolve(process.cwd(), outputDirectory),
+    retrievalHandoff: handoff,
+    rawTailBaseline: rawTail,
+    evaluatorInstructions: instructions,
+    manifest,
+    retrieval,
+    ...evaluation.summary,
+    aiCalls: 0,
+    networkRequests: 0,
+    nextStep: "Use each context in a separate fresh destination chat with the same task and configuration; score answers with evaluator-instructions.md.",
+  });
+}
+
 async function commandEncrypt(values) {
   const plaintext = await readSafeFile(one(values, "input"), 12 * 1024 * 1024);
   const first = await readPassphrase("Passphrase: ");
@@ -491,6 +534,7 @@ async function main() {
     annotate: commandAnnotate,
     continue: commandContinue,
     handoff: commandHandoff,
+    "evaluate-handoff": commandEvaluateHandoff,
     encrypt: commandEncrypt,
     decrypt: commandDecrypt,
     "fetch-share": commandFetchShare,
@@ -522,6 +566,7 @@ async function main() {
     annotate: ["archive", "event", "kind", "note"],
     continue: ["archive", "out", "select", "query"],
     handoff: ["archive", "out", "select", "query"],
+    "evaluate-handoff": ["archive", "query", "task", "out"],
     encrypt: ["input", "out"],
     decrypt: ["input", "out"],
     "fetch-share": ["url", "out"],

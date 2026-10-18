@@ -12,6 +12,7 @@ import { buildContinuationPacket, buildGuidedHandoff, expandEvidenceWindow, trun
 import { decryptArchive, encryptArchive } from "../src/lib/crypto-envelope.js";
 import { SecurityError, UsageError } from "../src/lib/errors.js";
 import { resolveOutputPath } from "../src/lib/fs-safe.js";
+import { buildHandoffEvaluation, buildRawTailBaseline } from "../src/lib/handoff-evaluation.js";
 import { sha256, sha256Text } from "../src/lib/hash.js";
 import { assertIndexMatchesArchive, buildInvertedIndex, readInvertedIndex, searchInvertedIndex, validateInvertedIndex, verifyInvertedIndex } from "../src/lib/inverted-index.js";
 import { parseNormalizedImport } from "../src/lib/normalized-import.js";
@@ -77,6 +78,28 @@ test("guided handoff keeps historical evidence bounded and explicitly untrusted"
   assert.match(handoff, /untrusted historical reference material/u);
   assert.match(handoff, new RegExp(archive.events[1].id, "u"));
   assert.doesNotMatch(handoff, new RegExp(archive.events[0].content.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
+});
+
+test("handoff evaluation uses a declared maximum source-evidence budget and preserves tail order", () => {
+  const archive = createArchiveFromMarkdown(transcript);
+  const handoff = buildGuidedHandoff(archive, { items: [] }, [archive.events[0].id]);
+  const evaluation = buildHandoffEvaluation(archive, {
+    query: "PKCE",
+    task: "State the recorded authentication decision and cite its event ID.",
+    retrieval: "direct-scan",
+    selectedEvents: [archive.events[0]],
+    handoffContent: handoff,
+  });
+  const manifest = JSON.parse(evaluation.manifest);
+  assert.equal(manifest.comparison.retrievalHandoff.sourceEvidenceBytes, Buffer.byteLength(archive.events[0].content, "utf8"));
+  assert.ok(manifest.comparison.rawTailBaseline.sourceEvidenceBytes <= manifest.comparison.retrievalHandoff.sourceEvidenceBytes);
+  assert.match(evaluation.rawTailContent, new RegExp(archive.events[1].id, "u"));
+  assert.throws(() => buildRawTailBaseline(archive, 120_001), UsageError);
+
+  const unicodeArchive = createArchiveFromMarkdown("# Unicode\n\n## Assistant\n\n🔐\n");
+  const unicodeTail = buildRawTailBaseline(unicodeArchive, 3);
+  assert.ok(unicodeTail.sourceEvidenceBytes <= 3);
+  assert.doesNotMatch(unicodeTail.content, /�/u);
 });
 
 test("verified inverted index finds conjunctions without transcript scanning", () => {
@@ -230,6 +253,43 @@ test("CLI creates a guided handoff without AI or network access", { concurrency:
         "--query", "PKCE",
       ], testDirectory),
       (error) => /either --query or --select/u.test(error.stderr),
+    );
+  } finally {
+    process.chdir(originalDirectory);
+    await rm(testDirectory, { recursive: true, force: true });
+  }
+});
+
+test("CLI creates a reproducible handoff evaluation kit without AI or network access", { concurrency: false }, async () => {
+  const testDirectory = await mkdtemp(path.join(os.tmpdir(), "context-ledger-evaluation-"));
+  const originalDirectory = process.cwd();
+  try {
+    process.chdir(testDirectory);
+    const archive = createArchiveFromMarkdown(transcript);
+    const bundle = await writeArchiveBundle(archive, "archives");
+    const result = await runCli([
+      "evaluate-handoff",
+      "--archive", bundle.archive,
+      "--query", "PKCE",
+      "--task", "State the decision and cite its event ID.",
+      "--out", "evaluation-kit",
+    ], testDirectory);
+    assert.equal(result.aiCalls, 0);
+    assert.equal(result.networkRequests, 0);
+    assert.ok(result.selectedEvidenceBytes >= result.rawTailEvidenceBytes);
+    const manifest = JSON.parse(await readFile(result.manifest, "utf8"));
+    assert.equal(manifest.schema, "context-ledger-handoff-evaluation/0.1");
+    assert.equal(manifest.query, "PKCE");
+    assert.match(await readFile(result.evaluatorInstructions, "utf8"), /separate fresh chats/u);
+    await assert.rejects(
+      () => runCli([
+        "evaluate-handoff",
+        "--archive", bundle.archive,
+        "--query", "PKCE",
+        "--task", "State the decision.",
+        "--out", "evaluation-kit",
+      ], testDirectory),
+      (error) => /already exists/u.test(error.stderr),
     );
   } finally {
     process.chdir(originalDirectory);
