@@ -1,6 +1,17 @@
 # Changelog
 
-## Unreleased — 2.0.0 portable single-conversation packages
+## Unreleased — 2.5.0 deterministic conversation map
+
+This development line combines the planned 2.1–2.5 map work without adding AI inference, cloud state, or a new provider scraper.
+
+- Adds a deterministic `context-ledger-conversation-graph/0.1` sidecar. Every immutable archive event becomes a node and every adjacent pair receives an automatic `next` edge.
+- Adds deliberate, forward-only `supports`, `clarifies`, `supersedes`, `depends_on`, `answers`, and `relates_to` links. A link cannot create a cycle or alter chronology.
+- Adds `graph-build`, `graph-link`, `graph-verify`, `graph-brief`, and `graph-viewer`. Default graph commands make zero AI calls and zero network requests.
+- Adds a deterministic graph brief and static SVG/HTML map viewer with no JavaScript, external resources, or executable attachments.
+- Extends portable packaging to `context-ledger-package/1.1`, retaining non-empty manual graph links while still importing v2.0's `1.0` packages.
+- Adds graph integrity, safe-viewer, CLI, package round-trip, and hostile-input regression coverage.
+
+## 2.0.0 — 2026-10-18 portable single-conversation packages
 
 This development line turns the existing loose local archive bundle into one portable, local-only package for a single conversation. It does not add automatic import to AI providers, provider credentials, browser automation, account exports, cloud storage, multi-conversation packaging, attachments, or AI use.
 
