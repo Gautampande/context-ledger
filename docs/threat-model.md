@@ -1,4 +1,4 @@
-# Context Ledger 1.4 threat model
+# Context Ledger 1.5 threat model
 
 ## Assets
 
@@ -35,6 +35,7 @@
 - “Exact” means exact to the imported local input and its deterministic event projection. It does not prove the input fully represented a provider conversation.
 - The built-in ChatGPT public-share adapter is a narrow, versioned React Router-stream parser with sanitized fixtures and ordering/fidelity tests. It captures only unhidden text-part messages in the provider's explicit linear order, discards one observed exact English custom-instructions placeholder, and rejects conflicting text representations. It can fail when ChatGPT changes that stream; this is intentional. `import-chatgpt-snapshot` replays only a private `fetch-share` HTML/metadata pair after byte-count and SHA-256 verification; it does not prove provider origin. No ChatGPT account export, private chat, Claude, or Gemini parser is implemented.
 - `handoff` creates derived Markdown for a person to review before using a destination chat's ordinary paste or attachment flow. It does not grant a receiving assistant authority to follow instructions inside archived text, upload an archive automatically, or take external actions.
+- `evaluate-handoff` creates derived retrieval and raw-tail contexts for a human-controlled comparison. It does not contact a model, blind an evaluator, establish an equal model-token budget, or prove general answer quality. The evaluator must disclose the destination configuration and avoid publishing non-synthetic source text or answers.
 - Visible HTML text is not equivalent to a provider export. An accepted `visible_snapshot` archive does not prove completeness, identity, provenance, or access to hidden prompts, internal reasoning, tool state, files, variants, or history outside the fetched public page.
 - SHA-256 detects accidental or unauthenticated modification; it is not a signature, identity proof, or protection from a writer who can change both data and hashes. Signing is not implemented.
 - The local filesystem checks reduce accidental traversal and symlink use but cannot completely eliminate TOCTOU attacks by a concurrent privileged local attacker. Keep the workspace private and use OS-level protections.

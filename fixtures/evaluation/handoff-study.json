@@ -1,0 +1,62 @@
+{
+  "schema": "context-ledger-import/0.1",
+  "title": "Synthetic Atlas handoff study",
+  "messages": [
+    {
+      "role": "user",
+      "content": "This is a synthetic evaluation conversation. We need to choose an authorization approach for the Atlas mobile app."
+    },
+    {
+      "role": "assistant",
+      "content": "Decision: Atlas will use OAuth 2.0 authorization code flow with PKCE. The authorization server must validate the code verifier at token exchange."
+    },
+    {
+      "role": "user",
+      "content": "What should we keep out of diagnostic logs?"
+    },
+    {
+      "role": "assistant",
+      "content": "Decision: redact access tokens, refresh tokens, authorization codes, and PKCE verifiers from diagnostic logs. Log only a request correlation ID and outcome category."
+    },
+    {
+      "role": "user",
+      "content": "Who owns the immediate implementation task?"
+    },
+    {
+      "role": "assistant",
+      "content": "Task: the mobile client team will implement PKCE challenge generation; the identity team will validate the verifier during token exchange."
+    },
+    {
+      "role": "user",
+      "content": "For the prototype, use a short non-production callback URL and a disposable test tenant."
+    },
+    {
+      "role": "assistant",
+      "content": "Noted. This is evaluation-only data and contains no real credentials, endpoints, users, or production decisions."
+    },
+    {
+      "role": "user",
+      "content": "Now help name the settings screen."
+    },
+    {
+      "role": "assistant",
+      "content": "Possible names: Account access, Sign-in settings, or Connected accounts."
+    },
+    {
+      "role": "user",
+      "content": "Use Account access. Also make the empty state concise."
+    },
+    {
+      "role": "assistant",
+      "content": "Suggested empty state: No connected accounts yet. Add an account to continue."
+    },
+    {
+      "role": "user",
+      "content": "Does the conversation select a production database?"
+    },
+    {
+      "role": "assistant",
+      "content": "No production database choice has been recorded in this conversation."
+    }
+  ]
+}

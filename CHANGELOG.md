@@ -1,12 +1,21 @@
 # Changelog
 
-## Unreleased — 1.4.0 guided handoff
+## Unreleased — 1.5.0 handoff evaluation
+
+This development branch adds a reproducible local evaluation kit for testing the retrieval-selected handoff against an honest raw-tail baseline. It does not invoke an AI provider, estimate tokens, or claim that a score proves general model quality.
+
+- Adds `evaluate-handoff`, which writes checksum-bound retrieval-handoff, raw-tail, evaluator-instruction, and manifest files into a new local directory.
+- Matches the comparison on declared UTF-8 historical message-content bytes and records selected event IDs, byte budgets, and SHA-256 values.
+- Adds a synthetic study fixture, a fixed scoring rubric, and a release gate that requires three predeclared synthetic tasks and publication of losses or inconclusive results.
+- Includes the unreleased guided-handoff work originally planned for `v1.4.0`; there will be no standalone `v1.4.0` tag.
+
+## Included in planned 1.5.0 — guided handoff work
 
 This release focuses on making the existing local archive-to-new-chat workflow understandable without adding an automatic provider import claim.
 
 - Adds `handoff`, a zero-token, zero-network command that creates one reviewed Markdown file ready to paste or attach in another AI chat.
 - Keeps the source evidence bounded, retains archive/event identifiers, and tells both the person and receiving assistant how to treat historical text safely.
-- Adds a documented usability evaluation protocol. `v1.4.0` is not considered ready until three new users complete the handoff workflow without maintainer assistance in five minutes or less.
+- Adds a documented usability evaluation protocol. `v1.5.0` is not considered ready until three new users complete the handoff workflow without maintainer assistance in five minutes or less.
 
 ## 1.3.0 — 2026-10-12
 

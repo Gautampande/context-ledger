@@ -2,16 +2,17 @@
 
 `Context Ledger` is a local-first, Git-hosted tool for retaining and handing off one important AI conversation at a time. It preserves the imported transcript, builds a deterministic local index, and creates bounded continuation packets. Related-archive project graph support is separate and optional.
 
-It is deliberately **not** a universal ChatGPT/Claude/Gemini scraper. Published `v1.3.0` includes one narrow adapter for the supported public ChatGPT shared-page React Router stream, a transparent initial compatibility canary, and offline replay of a locally captured snapshot. The `v1.4.0` development work makes the local archive-to-new-chat handoff easier to review and share; it does not claim automatic provider import. It preserves only verified visible text messages and fails closed on unsupported representations or visible artifacts. It is not a claim of full account-export fidelity.
+It is deliberately **not** a universal ChatGPT/Claude/Gemini scraper. Published `v1.3.0` includes one narrow adapter for the supported public ChatGPT shared-page React Router stream, a transparent initial compatibility canary, and offline replay of a locally captured snapshot. The planned `v1.5.0` release bundles the formerly separate guided-handoff work with a reproducible way to compare that handoff against an honest raw-tail baseline. It does not claim automatic provider import or full account-export fidelity.
 
 For a full technical and product handoff—including architecture, current feature boundaries, security decisions, and a ready-to-use AI collaboration prompt—read the [project guidebook](docs/project-guidebook.md).
 
-## Current capability and `v1.4.0` development
+## Current capability and `v1.5.0` development
 
 - Exact UTF-8 Markdown import and strict normalized-JSON import.
 - Portable `aicx/0.3` JSON archive: immutable transcript, deterministic event projection, SHA-256 integrity fields, and readable companion files. Older `aicx/0.1` and `aicx/0.2` archives remain readable.
 - Token-free local inverted-index search, annotations, static offline viewer, and evidence-bounded continuation packets.
 - `handoff` creates one reviewed, target-neutral Markdown handoff file for a person to paste or attach in a new chat.
+- `evaluate-handoff` creates local, checksum-bound retrieval-handoff and raw-tail comparison contexts plus a fixed scoring guide; it makes no AI or network request.
 - `import-chatgpt-share` for the supported `https://chatgpt.com/share/...` React Router stream surface. It creates an archive and index in one command, with no AI API key.
 - `import-chatgpt-snapshot` for a previously captured ChatGPT HTML/metadata pair. It verifies the pair locally, makes no network request, and creates the same bounded archive/index output.
 - Optional AES-256-GCM envelope encryption with scrypt-derived keys.
@@ -36,6 +37,7 @@ node src/cli.js import-json --input fixtures/normalized-example.json --out archi
 node src/cli.js inspect --archive archives/<archive-id>/archive.aicx.json
 node src/cli.js search --archive archives/<archive-id>/archive.aicx.json --query authentication
 node src/cli.js handoff --archive archives/<archive-id>/archive.aicx.json --query authentication --out reviewed-handoff.md
+node src/cli.js evaluate-handoff --archive archives/<archive-id>/archive.aicx.json --query authentication --task 'State the decision and cite its event ID.' --out evaluation-kit
 node src/cli.js viewer --archive archives/<archive-id>/archive.aicx.json --out archive-viewer.html
 ```
 
@@ -66,6 +68,8 @@ An archive is one `archive.aicx.json` file plus optional derived files:
 Indices, viewers, handoffs, and AI results are derived outputs. Keep the canonical archive to move a conversation between systems. A receiving AI chat cannot silently import a file through a universal standard; paste or attach the generated continuation packet using the target product’s supported upload/share mechanism.
 
 For the clearest human-facing output, use `handoff` rather than `continue`. It adds instructions for the person moving the work and for the receiving assistant, while preserving the same bounded evidence and treating historical text as untrusted. Review the generated file before sharing it. See [the v1.4 guided-handoff protocol](docs/v1.4.0-guided-handoff.md).
+
+To test whether a retrieval-selected handoff helps a particular continuation task, use `evaluate-handoff`. It creates the handoff and a recent raw-tail baseline under the same declared maximum source-content budget, but deliberately does not call or judge an AI model. See [the v1.5 evaluation protocol](docs/v1.5.0-handoff-evaluation.md).
 
 ## Project graph (Phase 0.5)
 
