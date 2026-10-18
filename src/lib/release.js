@@ -17,6 +17,7 @@ const REQUIRED_TEXT_FILES = [
   "docs/v1.3.0-snapshot-replay.md",
   "docs/v1.4.0-guided-handoff.md",
   "docs/v1.5.0-handoff-evaluation.md",
+  "docs/v2.0.0-portable-package.md",
   "docs/example-session.md",
   "docs/project-guidebook.md",
   "docs/rollout-plan.md",

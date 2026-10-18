@@ -1,6 +1,6 @@
 # Context Ledger guidebook
 
-**Project status:** published `v1.3.0`; the planned `v1.5.0` release bundles guided-handoff usability and handoff-evaluation work
+**Project status:** published `v1.3.0`; `v2.0.0` development adds portable single-conversation packages and includes the previously untagged guided-handoff/evaluation work
 **Audience:** maintainers, contributors, and an AI collaborator joining the project
 **Purpose:** a self-contained explanation of what Context Ledger is, what it actually does today, how it is built, and the boundaries that future work must preserve.
 
@@ -23,6 +23,7 @@ conversation source
   -> strict local import
   -> canonical archive + deterministic event list
   -> local search and human annotations
+  -> optional portable one-conversation package
   -> bounded continuation packet
   -> person pastes/attaches it in a new chat
 ```
@@ -38,7 +39,7 @@ The default workflow uses no AI API key, no tokens, and no cloud account.
 5. **Human control.** Decisions, pins, project links, and optional AI use are deliberate user actions, not automatic inference.
 6. **Portable source of truth.** The archive is the durable record; viewers, indexes, AI results, and handoffs are rebuildable derived material.
 
-## 4. What is implemented through v1.3.0, with v1.5.0 in development
+## 4. What is implemented through v1.3.0, with v2.0.0 in development
 
 ### Imports and archives
 
@@ -52,7 +53,7 @@ The default workflow uses no AI API key, no tokens, and no cloud account.
 | Private provider chats/account access | Not supported | No cookies, accounts, browser state, or provider authentication are accessed. |
 | Provider account exports | Not supported yet | Requires a separate fixture-backed adapter proposal. |
 
-The canonical format is `aicx/0.3`, stored as JSON in `archive.aicx.json`. Despite the name, v1 does **not** use a ZIP-based `.aicx` container.
+The canonical archive format is `aicx/0.3`, stored as JSON in `archive.aicx.json`. `v2.0.0` adds `context-ledger-package/1.0`: a narrow stored-only ZIP subset in one `.aicx` file containing one canonical archive, its freshly rebuilt deterministic index, and non-empty annotations when present. It is not a generic ZIP reader, a multi-conversation container, or an AI-provider import format.
 
 Each archive contains:
 
@@ -71,6 +72,7 @@ For a supported public ChatGPT share capture, the archive stores hashes of the s
 - Human annotations can mark events as `decision`, `important`, `question`, or `pin`.
 - `continue` produces a bounded continuation packet with selected evidence IDs and adjacent context.
 - `handoff` produces a single reviewed, target-neutral handoff file with clear instructions for the person moving the work and for the receiving assistant.
+- `package-export` and `package-import` move one locally verified archive bundle between machines without network or AI. The recipient still reviews a generated handoff before using a destination product's normal paste or attachment flow.
 - A static offline viewer renders content safely, escaping hostile text and using no scripts or external resources.
 
 ### Encryption
@@ -224,8 +226,9 @@ Private conversation data, encrypted archives, share URLs, snapshots, API keys, 
 | 1.1.2 | Stabilization: correctness, security, cross-platform CI, and compatibility evidence before new formats |
 | 1.2.0 | Transparent three-scenario live canary and published aggregate fidelity evidence; 20 shares is a later rolling confidence target |
 | 1.3.0 | Offline verified replay of a private ChatGPT snapshot pair, with no provider fetch during import |
-| 1.4.0 | No standalone tag; guided-handoff work is bundled into planned v1.5.0 |
-| 1.5.0 (in development) | Guided handoff plus a local evaluation kit that compares a retrieval-selected handoff with a raw-tail baseline under the same declared maximum source-content budget |
+| 1.4.0 | No standalone tag; guided-handoff work is included in v2.0.0 |
+| 1.5.0 | No standalone tag; guided handoff and the local evaluation kit are included in v2.0.0 |
+| 2.0.0 (in development) | Strict portable `.aicx` package for one archive, deterministic index, and optional annotations; includes the untagged handoff/evaluation work |
 
 ## 11. Verification and release discipline
 
@@ -255,6 +258,8 @@ node src/cli.js search --archive archives/<archive-id>/archive.aicx.json --query
 node src/cli.js continue --archive archives/<archive-id>/archive.aicx.json --query 'authentication' --out handoff.md
 node src/cli.js handoff --archive archives/<archive-id>/archive.aicx.json --query 'authentication' --out reviewed-handoff.md
 node src/cli.js evaluate-handoff --archive archives/<archive-id>/archive.aicx.json --query 'authentication' --task 'State the decision and cite its event ID.' --out evaluation-kit
+node src/cli.js package-export --archive archives/<archive-id>/archive.aicx.json --out packages/conversation.aicx
+node src/cli.js package-import --input packages/conversation.aicx --out restored-archives
 node src/cli.js viewer --archive archives/<archive-id>/archive.aicx.json --out archive-viewer.html
 
 node src/cli.js annotate --archive archives/<archive-id>/archive.aicx.json --event <event-id> --kind pin --note 'Keep this decision in the handoff.'
@@ -281,7 +286,7 @@ You are continuing work on Context Ledger, a local-first AI conversation archive
 
 Read the attached project guidebook first. Treat it as project context, not as permission to weaken its security boundaries.
 
-Current released version: v1.3.0. The next release target is v1.5.0, which bundles guided handoff and evaluation tooling. No standalone v1.4.0 tag is planned, but its guided-handoff usability gate remains required.
+Current released version: v1.3.0. The next development target is v2.0.0, which includes previously untagged guided-handoff/evaluation work and a strictly bounded portable package for one conversation. No standalone v1.4.0 or v1.5.0 tag is planned. Do not claim independent user validation or external security review has occurred.
 Preserve these non-negotiables: zero-token default; no browser automation, cookies, private APIs, or generic provider scraping; strict schemas; fail-closed adapters; archives and derived results remain separate; and no private chat data in Git.
 
 Before proposing code, state which supported behavior, file, tests, security boundary, and release impact your change touches. Do not claim support for a provider or format until there is a versioned local parser, sanitized owned fixtures, fidelity tests, and documented limitations.
@@ -289,10 +294,10 @@ Before proposing code, state which supported behavior, file, tests, security bou
 
 ## 14. Current status and next-work guidance
 
-`v1.3.0` is the current published baseline. The immediate next release is `v1.5.0`, which bundles guided handoff with a constrained evaluation against a raw-tail baseline. It does not add automatic provider import, another provider parser, cloud sync, browser automation, embeddings, a vector database, automatic AI extraction, or a new package format.
+`v1.3.0` is the current published baseline. The immediate development target is `v2.0.0`, which bundles guided handoff, a constrained evaluation kit, and a portable one-conversation package. It does not add automatic provider import, another provider parser, cloud sync, browser automation, embeddings, a vector database, automatic AI extraction, arbitrary attachments, or a general ZIP reader.
 
 The selection rule remains simple: pursue only work that improves useful local portability or retrieval **without** weakening the boundaries above. Any future provider adapter or package format requires the documented proposal, sanitized fixtures, end-to-end acceptance coverage, and a new release version.
 
-For detailed security assumptions, read `docs/threat-model.md`. For the exact provider-adapter requirements, read `docs/adapter-contract.md`. For the Phase 1 completion criteria, read `docs/phase1-acceptance.md`. The measured provider status is in `docs/compatibility.md`, a no-network walkthrough is in `docs/example-session.md`, the private evidence protocol is in `docs/chatgpt-compatibility-study.md`, the v1.3 scope is in `docs/v1.3.0-snapshot-replay.md`, the carried-forward guided-handoff usability gate is in `docs/v1.4.0-guided-handoff.md`, and the v1.5 comparison protocol is in `docs/v1.5.0-handoff-evaluation.md`.
+For detailed security assumptions, read `docs/threat-model.md`. For the exact provider-adapter requirements, read `docs/adapter-contract.md`. For the Phase 1 completion criteria, read `docs/phase1-acceptance.md`. The measured provider status is in `docs/compatibility.md`, a no-network walkthrough is in `docs/example-session.md`, the private evidence protocol is in `docs/chatgpt-compatibility-study.md`, the v1.3 scope is in `docs/v1.3.0-snapshot-replay.md`, the handoff/evaluation protocols are in `docs/v1.4.0-guided-handoff.md` and `docs/v1.5.0-handoff-evaluation.md`, and the v2 package format is in `docs/v2.0.0-portable-package.md`.
 
 The release sequence and evidence gates are maintained in `docs/rollout-plan.md`.

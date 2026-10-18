@@ -6,7 +6,7 @@ The published baseline is `v1.3.0`. It has one deliberately narrow ChatGPT publi
 
 That is encouraging, but it is not enough evidence to call the adapter broadly reliable or the product launch-ready. The public release history includes `v1.0.0` through `v1.3.0`.
 
-The planned `v1.5.0` release bundles guided handoff—one reviewed Markdown file that a person can paste or attach in a new chat—with measurement tooling. It is not automatic provider import, a new provider parser, a ZIP container, cloud service, or browser companion. The guided-handoff usability gate in [v1.4.0-guided-handoff.md](v1.4.0-guided-handoff.md) carries forward into `v1.5.0`; no standalone `v1.4.0` tag is planned.
+The unreleased guided-handoff and measurement work is bundled into the `v2.0.0` development line rather than being tagged as `v1.4.0` or `v1.5.0`. `v2.0.0` adds a strictly bounded local `.aicx` package for one conversation. It is not automatic provider import, a new provider parser, a cloud service, or a browser companion. The independent-usability study remains valuable future evidence, but has not been run and must not be claimed as complete.
 
 ## Positioning
 
@@ -25,9 +25,9 @@ Do not claim that the tool can universally move chats between AI products. A rec
 | `v1.1.2` | Stabilization and trustworthy failures | Cross-platform CI green; stated regression tests pass; docs match actual behavior. |
 | `v1.2.0` | Correctness and evidence | A published, transparent three-scenario live canary; no silent fidelity failure in a passing import. |
 | `v1.3.0` | Offline snapshot replay | A `fetch-share` HTML/metadata pair is verified and imported without network; mismatch, tampering, and non-ChatGPT metadata fail before archive creation. |
-| `v1.4.0` | Guided handoff usability | Feature work is bundled into `v1.5.0`; no standalone tag. Its gate carries forward: three new users create and review a target-neutral handoff unaided in five minutes or less, with aggregate-only findings. |
-| `v1.5.0` | Final 1.x evidence release | Passes the carried-forward guided-handoff usability gate **and** a reproducible synthetic evaluation against a raw-tail baseline under the same declared maximum source-content budget, including losses and inconclusive cases. |
-| `v2.0.0` | External validation | External security review is closed with no unresolved high-severity issue, and outside-user feedback is recorded. |
+| `v1.4.0` | Guided handoff usability | No standalone tag. The feature is included in `v2.0.0`; the independent three-user study was not run and is not claimed. |
+| `v1.5.0` | Handoff measurement | No standalone tag. The reproducible local evaluation kit is included in `v2.0.0`; it remains a tool for collecting evidence, not a completed quality claim. |
+| `v2.0.0` | Portable single-conversation package | Stored-only package round-trip and hostile-input tests pass, `npm test`, syntax, and release checks pass, and documentation states the security and interoperability limits. This does **not** claim external review or outside-user validation. |
 
 Dates are estimates, not promises. A gate that fails changes the plan rather than being waived.
 
@@ -63,20 +63,20 @@ Until then, ChatGPT share support remains narrow and versioned, not universal. C
 
 ## Deferred work
 
-The following remain frozen while `v1.5.0` is limited to guided rendering and measurement on top of existing archive data:
+The following remain out of scope after `v2.0.0`:
 
 - New provider parsers or account-export importers.
-- A ZIP `.aicx` container, attachments, and assets.
+- Attachments, arbitrary package assets, or a general ZIP reader.
 - Embeddings, vector databases, automatic extraction, or new graph features.
 - Browser companions, cloud sync, accounts, teams, and executable plugins.
 
-If a future export format requires ZIP handling, `node:zlib` alone is not treated as a ZIP parser. The project must choose and test a complete bounded implementation or deliberately review a dependency change.
+The `v2.0.0` package uses a deliberately narrow stored-only ZIP subset implemented and tested in-tree; it is not a general ZIP parser. Any expansion to compression, attachments, or broader ZIP compatibility requires a new format review and security tests.
 
 ## Measurement and launch discipline
 
 For a handoff evaluation, publish the tokenizer/counting method, equal input/output budgets for baselines, scoring rubric, prompts, failure handling, and raw results—including losses. If bounded packets do not outperform a raw-tail baseline often enough to justify the product claim, reposition around archival integrity and retrieval rather than forcing the handoff claim.
 
-Begin external-review preparation before the final launch stage. Any live compatibility canary must use a dedicated non-sensitive owned share, avoid logging its text, deduplicate failures, and be diagnostic rather than a merge blocker.
+Independent usability feedback and external security review remain desirable follow-up evidence. Any live compatibility canary must use a dedicated non-sensitive owned share, avoid logging its text, deduplicate failures, and be diagnostic rather than a merge blocker.
 
 ## Standing rules
 

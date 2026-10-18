@@ -1,21 +1,31 @@
 # Changelog
 
-## Unreleased — 1.5.0 handoff evaluation
+## Unreleased — 2.0.0 portable single-conversation packages
 
-This development branch adds a reproducible local evaluation kit for testing the retrieval-selected handoff against an honest raw-tail baseline. It does not invoke an AI provider, estimate tokens, or claim that a score proves general model quality.
+This development line turns the existing loose local archive bundle into one portable, local-only package for a single conversation. It does not add automatic import to AI providers, provider credentials, browser automation, account exports, cloud storage, multi-conversation packaging, attachments, or AI use.
+
+- Adds `package-export` and `package-import` for `.aicx` packages using a strict `context-ledger-package/1.0` stored-only ZIP subset.
+- Packages contain only the canonical archive, a freshly rebuilt deterministic index, and non-empty validated annotations when present. Raw snapshots, public share URLs, executable content, arbitrary files, and AI results are excluded.
+- Validates every package entry, manifest digest, canonical archive, deterministic index, and optional annotation sidecar before import. Unsupported ZIP features, duplicate/unknown paths, compression, unsafe output paths, and malformed content fail closed.
+- Adds offline round-trip and hostile-package regression tests. Default package commands make zero AI calls and zero network requests.
+- Ignores `.aicx` files by default because packages can contain private conversation content.
+
+## Included but not separately released — 1.5.0 handoff evaluation
+
+This untagged scope adds a reproducible local evaluation kit for testing the retrieval-selected handoff against an honest raw-tail baseline. It does not invoke an AI provider, estimate tokens, or claim that a score proves general model quality.
 
 - Adds `evaluate-handoff`, which writes checksum-bound retrieval-handoff, raw-tail, evaluator-instruction, and manifest files into a new local directory.
 - Matches the comparison on declared UTF-8 historical message-content bytes and records selected event IDs, byte budgets, and SHA-256 values.
-- Adds a synthetic study fixture, a fixed scoring rubric, and a release gate that requires three predeclared synthetic tasks and publication of losses or inconclusive results.
+- Adds a synthetic study fixture and fixed scoring rubric for three predeclared tasks. No external-chat results are claimed until somebody runs and publishes all outcomes, including losses or inconclusive results.
 - Includes the unreleased guided-handoff work originally planned for `v1.4.0`; there will be no standalone `v1.4.0` tag.
 
-## Included in planned 1.5.0 — guided handoff work
+## Included but not separately released — guided handoff work
 
 This release focuses on making the existing local archive-to-new-chat workflow understandable without adding an automatic provider import claim.
 
 - Adds `handoff`, a zero-token, zero-network command that creates one reviewed Markdown file ready to paste or attach in another AI chat.
 - Keeps the source evidence bounded, retains archive/event identifiers, and tells both the person and receiving assistant how to treat historical text safely.
-- Adds a documented usability evaluation protocol. `v1.5.0` is not considered ready until three new users complete the handoff workflow without maintainer assistance in five minutes or less.
+- Adds a documented independent-usability protocol. It has not been run and is not claimed as a completed validation.
 
 ## 1.3.0 — 2026-10-12
 
