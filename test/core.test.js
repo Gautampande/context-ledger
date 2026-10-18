@@ -9,6 +9,8 @@ import { addAnnotation, createArchiveFromMarkdown, createArchiveFromNormalizedIm
 import { createAiPlan, invokeAiPlan, validateAiPlan } from "../src/lib/ai.js";
 import { exportPortablePackage, importPortablePackage, parsePortablePackageForTests } from "../src/lib/aicx-package.js";
 import { importChatGptSharedConversation, importChatGptSharedSnapshot, parseChatGptSharedHtml } from "../src/lib/chatgpt-share.js";
+import { addConversationGraphEdge, buildConversationGraph, manualGraphEdges, readConversationGraph, validateConversationGraph } from "../src/lib/conversation-graph.js";
+import { buildConversationBrief, renderConversationMapViewer } from "../src/lib/conversation-map.js";
 import { buildContinuationPacket, buildGuidedHandoff, expandEvidenceWindow, truncateUtf8AtCodePointBoundary } from "../src/lib/context.js";
 import { decryptArchive, encryptArchive } from "../src/lib/crypto-envelope.js";
 import { SecurityError, UsageError } from "../src/lib/errors.js";
@@ -43,6 +45,23 @@ test("creates an exact transcript record and ordered message events", () => {
   assert.doesNotThrow(() => validateArchive(archive));
 });
 
+test("conversation graph is a deterministic forward-only DAG with deliberate manual links", () => {
+  const source = "# Graph\n\n## User\n\nChoose PKCE.\n\n## Assistant\n\nPKCE is selected.\n\n## User\n\nRecord the security rationale.\n";
+  const archive = createArchiveFromMarkdown(source);
+  const graph = buildConversationGraph(archive, [{
+    from: archive.events[0].id,
+    to: archive.events[2].id,
+    kind: "supports",
+  }]);
+  assert.equal(graph.nodes.length, 3);
+  assert.equal(graph.edges.length, 3);
+  assert.equal(manualGraphEdges(graph).length, 1);
+  assert.doesNotThrow(() => validateConversationGraph(graph, archive));
+  const backwards = structuredClone(graph);
+  backwards.edges[2] = { from: archive.events[2].id, to: archive.events[0].id, kind: "supports" };
+  assert.throws(() => validateConversationGraph(backwards, archive), SecurityError);
+});
+
 test("portable packages round-trip one archive, a verified index, and annotations without network or AI", { concurrency: false }, async () => {
   const testDirectory = await mkdtemp(path.join(os.tmpdir(), "context-ledger-package-"));
   const originalDirectory = process.cwd();
@@ -55,13 +74,19 @@ test("portable packages round-trip one archive, a verified index, and annotation
       kind: "decision",
       note: "PKCE is the recorded authentication decision.",
     });
+    await addConversationGraphEdge(bundle.archive, archive, {
+      from: archive.events[0].id,
+      to: archive.events[1].id,
+      kind: "supports",
+    });
     const exported = await exportPortablePackage(bundle.archive, "packages/demo.aicx");
-    assert.equal(exported.entries, 4);
+    assert.equal(exported.entries, 5);
     const packageBytes = await readFile(exported.package);
     assert.equal(packageBytes.readUInt32LE(0), 0x04034b50);
     const parsed = parsePortablePackageForTests(packageBytes);
     assert.equal(parsed.archive.archiveId, archive.archiveId);
     assert.equal(parsed.annotations.items.length, 1);
+    assert.equal(manualGraphEdges(parsed.graph).length, 1);
 
     const imported = await importPortablePackage("packages/demo.aicx", "restored");
     const restored = await readArchive(imported.archive);
@@ -70,7 +95,49 @@ test("portable packages round-trip one archive, a verified index, and annotation
     assert.doesNotThrow(() => assertIndexMatchesArchive(index, restored));
     const annotations = await readAnnotations(imported.archive, restored);
     assert.equal(annotations.items.length, 1);
+    const graph = await readConversationGraph(imported.archive, restored);
+    assert.equal(manualGraphEdges(graph).length, 1);
     assert.match(await readFile(imported.archive, "utf8"), /PKCE/u);
+  } finally {
+    process.chdir(originalDirectory);
+    await rm(testDirectory, { recursive: true, force: true });
+  }
+});
+
+test("graph commands create a safe offline map and deterministic brief without AI or network", { concurrency: false }, async () => {
+  const testDirectory = await mkdtemp(path.join(os.tmpdir(), "context-ledger-graph-cli-"));
+  const originalDirectory = process.cwd();
+  try {
+    process.chdir(testDirectory);
+    const archive = createArchiveFromMarkdown("# Graph\n\n## User\n\nUse PKCE.\n\n## Assistant\n\nPKCE is selected.\n");
+    const bundle = await writeArchiveBundle(archive, "archives");
+    const built = await runCli(["graph-build", "--archive", bundle.archive], testDirectory);
+    assert.equal(built.nodes, 2);
+    const linked = await runCli([
+      "graph-link", "--archive", bundle.archive,
+      "--from", archive.events[0].id,
+      "--to", archive.events[1].id,
+      "--kind", "supports",
+    ], testDirectory);
+    assert.equal(linked.manualEdges, 1);
+    const verified = await runCli(["graph-verify", "--archive", bundle.archive], testDirectory);
+    assert.equal(verified.verified, true);
+    const brief = await runCli(["graph-brief", "--archive", bundle.archive, "--out", "brief.md"], testDirectory);
+    const briefText = await readFile(brief.brief, "utf8");
+    assert.match(briefText, /deterministic inventory/u);
+    const viewer = await runCli(["graph-viewer", "--archive", bundle.archive, "--out", "map.html", "--query", "PKCE"], testDirectory);
+    assert.equal(viewer.aiCalls, 0);
+    assert.equal(viewer.networkRequests, 0);
+    const viewerText = await readFile(viewer.viewer, "utf8");
+    assert.match(viewerText, /<svg/u);
+    assert.match(viewerText, /script-src 'none'/u);
+    assert.doesNotMatch(viewerText, /<script/u);
+    const directBrief = buildConversationBrief(archive, { items: [] }, buildConversationGraph(archive));
+    assert.match(directBrief, /No manual relationships/u);
+    const hostileArchive = createArchiveFromMarkdown("# Hostile\n\n## User\n\n</pre><script>alert(1)</script>\n");
+    const hostileViewer = renderConversationMapViewer(hostileArchive, buildConversationGraph(hostileArchive), []);
+    assert.match(hostileViewer, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/u);
+    assert.doesNotMatch(hostileViewer, /<script/u);
   } finally {
     process.chdir(originalDirectory);
     await rm(testDirectory, { recursive: true, force: true });

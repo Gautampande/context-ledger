@@ -1,19 +1,21 @@
 import { readAnnotations, validateAnnotations, validateArchive, writeArchiveBundle } from "./archive.js";
+import { manualGraphEdges, readConversationGraph, validateConversationGraph, writeConversationGraph } from "./conversation-graph.js";
 import { SecurityError, UsageError } from "./errors.js";
 import { decodeUtf8, readSafeFile, workspaceRelativePath, writeNewFile } from "./fs-safe.js";
 import { sha256 } from "./hash.js";
 import { assertIndexMatchesArchive, buildInvertedIndex, validateInvertedIndex, writeInvertedIndex } from "./inverted-index.js";
 
-export const PACKAGE_SCHEMA = "context-ledger-package/1.0";
+export const PACKAGE_SCHEMA = "context-ledger-package/1.1";
 export const MAX_PACKAGE_BYTES = 24 * 1024 * 1024;
 
 const ARCHIVE_ENTRY = "archive.aicx.json";
 const INDEX_ENTRY = "archive.aicx.json.index.json";
 const ANNOTATIONS_ENTRY = "archive.aicx.json.annotations.json";
+const GRAPH_ENTRY = "archive.aicx.json.graph.json";
 const MANIFEST_ENTRY = "manifest.json";
-const ENTRY_ORDER = [MANIFEST_ENTRY, ARCHIVE_ENTRY, INDEX_ENTRY, ANNOTATIONS_ENTRY];
+const ENTRY_ORDER = [MANIFEST_ENTRY, ARCHIVE_ENTRY, INDEX_ENTRY, ANNOTATIONS_ENTRY, GRAPH_ENTRY];
 const REQUIRED_ENTRIES = new Set([MANIFEST_ENTRY, ARCHIVE_ENTRY, INDEX_ENTRY]);
-const OPTIONAL_ENTRIES = new Set([ANNOTATIONS_ENTRY]);
+const OPTIONAL_ENTRIES = new Set([ANNOTATIONS_ENTRY, GRAPH_ENTRY]);
 const MAX_MANIFEST_BYTES = 32 * 1024;
 const MAX_ANNOTATIONS_BYTES = 2 * 1024 * 1024;
 
@@ -63,6 +65,8 @@ function assertEntryBytes(name, bytes) {
     ? MAX_MANIFEST_BYTES
     : name === ANNOTATIONS_ENTRY
       ? MAX_ANNOTATIONS_BYTES
+    : name === GRAPH_ENTRY
+      ? 16 * 1024 * 1024
       : 10 * 1024 * 1024;
   if (bytes.length > maximum) throw new SecurityError(`Package entry ${name} exceeds its safety limit.`);
 }
@@ -200,7 +204,7 @@ function parseStoredZip(buffer) {
     throw new SecurityError("Portable package uses an unsupported multi-disk or commented ZIP feature.");
   }
   const entryCount = readUInt16(buffer, footerOffset + 8, "footer");
-  if (entryCount !== readUInt16(buffer, footerOffset + 10, "footer") || entryCount < 3 || entryCount > 4) {
+  if (entryCount !== readUInt16(buffer, footerOffset + 10, "footer") || entryCount < 3 || entryCount > 5) {
     throw new SecurityError("Portable package has an invalid entry count.");
   }
   const centralSize = readUInt32(buffer, footerOffset + 12, "footer");
@@ -315,7 +319,7 @@ function validateManifest(manifest, entries, archive) {
   assertPlainObject(manifest, "Package manifest");
   assertOnlyFields(manifest, new Set(["schema", "archiveId", "transcriptSha256", "files"]), "Package manifest");
   if (
-    manifest.schema !== PACKAGE_SCHEMA ||
+    !new Set(["context-ledger-package/1.0", PACKAGE_SCHEMA]).has(manifest.schema) ||
     manifest.archiveId !== archive.archiveId ||
     manifest.transcriptSha256 !== archive.transcript.sha256 ||
     !Array.isArray(manifest.files) ||
@@ -324,6 +328,9 @@ function validateManifest(manifest, entries, archive) {
     throw new SecurityError("Package manifest does not match its archive.");
   }
   const expected = ENTRY_ORDER.filter((name) => name !== MANIFEST_ENTRY && entries.has(name));
+  if (manifest.schema === "context-ledger-package/1.0" && entries.has(GRAPH_ENTRY)) {
+    throw new SecurityError("Package schema 1.0 may not contain a conversation graph.");
+  }
   const observed = [];
   for (const file of manifest.files) {
     assertPlainObject(file, "Package manifest file");
@@ -356,11 +363,15 @@ function validatePackageEntries(entries) {
   if (entries.has(ANNOTATIONS_ENTRY)) {
     annotations = validateAnnotations(parseJson(entries.get(ANNOTATIONS_ENTRY), "Package annotations"), archive);
   }
+  let graph;
+  if (entries.has(GRAPH_ENTRY)) {
+    graph = validateConversationGraph(parseJson(entries.get(GRAPH_ENTRY), "Package conversation graph"), archive);
+  }
   const manifest = validateManifest(parseJson(entries.get(MANIFEST_ENTRY), "Package manifest"), entries, archive);
-  return { manifest, archive, index, annotations };
+  return { manifest, archive, index, annotations, graph };
 }
 
-function createPackageEntries(archive, annotations) {
+function createPackageEntries(archive, annotations, graph) {
   validateArchive(archive);
   const index = buildInvertedIndex(archive);
   const files = [
@@ -371,6 +382,10 @@ function createPackageEntries(archive, annotations) {
     validateAnnotations(annotations, archive);
     files.push({ name: ANNOTATIONS_ENTRY, data: encodeJson(annotations) });
   }
+  if (graph && manualGraphEdges(graph).length > 0) {
+    validateConversationGraph(graph, archive);
+    files.push({ name: GRAPH_ENTRY, data: encodeJson(graph) });
+  }
   return [{ name: MANIFEST_ENTRY, data: encodeJson(manifestFor(archive, files)) }, ...files];
 }
 
@@ -379,12 +394,13 @@ export async function exportPortablePackage(archivePath, outputPath) {
   const archiveJson = parseJson(await readSafeFile(archivePath), "Archive");
   const archive = validateArchive(archiveJson);
   const annotations = await readAnnotations(archivePath, archive);
-  const packageBytes = writeStoredZip(createPackageEntries(archive, annotations));
+  const graph = await readConversationGraph(archivePath, archive);
+  const packageBytes = writeStoredZip(createPackageEntries(archive, annotations, graph));
   const output = await writeNewFile(outputPath, packageBytes);
   return {
     package: output,
     archiveId: archive.archiveId,
-    entries: annotations.items.length > 0 ? 4 : 3,
+    entries: 3 + (annotations.items.length > 0 ? 1 : 0) + (graph && manualGraphEdges(graph).length > 0 ? 1 : 0),
     byteLength: packageBytes.length,
   };
 }
@@ -401,12 +417,21 @@ export async function importPortablePackage(inputPath, outputDirectory) {
       const archiveRelative = await workspaceRelativePath(bundle.archive, "Imported archive");
       annotationPath = await writeNewFile(`${archiveRelative}.annotations.json`, encodeJson(parsed.annotations));
     }
+    let graphPath;
+    if (parsed.graph) {
+      graphPath = (await writeConversationGraph(
+        bundle.archive,
+        parsed.archive,
+        manualGraphEdges(parsed.graph),
+      )).path;
+    }
     return {
       archiveId: parsed.archive.archiveId,
       archive: bundle.archive,
       directory: bundle.directory,
       index: index.path,
       annotations: annotationPath,
+      graph: graphPath,
       entries: entries.size,
     };
   } catch (error) {

@@ -1,4 +1,4 @@
-# Context Ledger 2.0 threat model
+# Context Ledger 2.5 threat model
 
 ## Assets
 
@@ -22,6 +22,8 @@
 - Archive schema fields are allowlisted. Transcript hashes, byte lengths, and deterministic event projections are verified before use.
 - Search indexes are rebuildable and bound to the archive ID/transcript hash. `verify-index` rebuilds their deterministic content rather than trusting a checksum alone.
 - Portable `.aicx` packages accept only a small stored-only ZIP subset: fixed allowlisted entry names, bounded sizes, no compression/encryption/comments/extra fields/ZIP64, per-entry CRC checks, a SHA-256 manifest, canonical archive validation, deterministic-index rebuilding, and validated optional annotations. Package paths and imported outputs remain workspace-relative and symlink-checked.
+- Conversation graphs are derived from exact archive events. Automatic `next` edges are rebuilt deterministically; manual edges are allowlisted, deduplicated, forward-only, hash-bound, size-limited, and checked against the archive during every read. Non-empty manual graph links are included only in package schema 1.1.
+- The static graph viewer bounds rendered nodes/previews, escapes all historical text and link labels, uses a deny-by-default CSP including `script-src 'none'`, and has no external resources or executable content.
 - Outputs must be new relative paths under the working directory; path traversal and existing symbolic links are rejected. Created directories/files request `0700`/`0600` permissions where the platform honors them.
 - Continuation packets have fixed evidence-count and source-byte bounds. Terminal output is JSON-encoded.
 - Viewer output escapes content, strips display controls, has no scripts or external resources, and declares a deny-by-default Content Security Policy.
@@ -38,6 +40,7 @@
 - `handoff` creates derived Markdown for a person to review before using a destination chat's ordinary paste or attachment flow. It does not grant a receiving assistant authority to follow instructions inside archived text, upload an archive automatically, or take external actions.
 - `evaluate-handoff` creates derived retrieval and raw-tail contexts for a human-controlled comparison. It does not contact a model, blind an evaluator, establish an equal model-token budget, or prove general answer quality. The evaluator must disclose the destination configuration and avoid publishing non-synthetic source text or answers.
 - A `.aicx` package is plaintext by default and can carry private transcript text and annotations. It does not contain raw share HTML or share URLs, but any included content still needs a private transfer channel. Its hashes detect modification relative to a trusted reference; they are not signatures or identity/provenance proof. The reader is intentionally not a generic ZIP implementation.
+- A manual graph link is an untrusted human assertion about a relationship between two historical messages; it is not automatically inferred, independently verified, or authoritative. The deterministic brief is an inventory of recorded structure and annotations, not a factual or semantic summary.
 - Visible HTML text is not equivalent to a provider export. An accepted `visible_snapshot` archive does not prove completeness, identity, provenance, or access to hidden prompts, internal reasoning, tool state, files, variants, or history outside the fetched public page.
 - SHA-256 detects accidental or unauthenticated modification; it is not a signature, identity proof, or protection from a writer who can change both data and hashes. Signing is not implemented.
 - The local filesystem checks reduce accidental traversal and symlink use but cannot completely eliminate TOCTOU attacks by a concurrent privileged local attacker. Keep the workspace private and use OS-level protections.

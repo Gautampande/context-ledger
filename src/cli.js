@@ -4,6 +4,8 @@ import { createAiPlan, invokeAiPlan } from "./lib/ai.js";
 import { exportPortablePackage, importPortablePackage } from "./lib/aicx-package.js";
 import { createArchiveFromMarkdown, createArchiveFromNormalizedImport, addAnnotation, readAnnotations, readArchive, writeArchiveBundle } from "./lib/archive.js";
 import { importChatGptSharedConversation, importChatGptSharedSnapshot } from "./lib/chatgpt-share.js";
+import { addConversationGraphEdge, buildConversationGraph, manualGraphEdges, readConversationGraph, rebuildConversationGraph } from "./lib/conversation-graph.js";
+import { buildConversationBrief, renderConversationMapViewer, selectConversationMapEvents } from "./lib/conversation-map.js";
 import { expandEvidenceWindow, buildContinuationPacket, buildGuidedHandoff } from "./lib/context.js";
 import { decryptArchive, encryptArchive, samePassphrase } from "./lib/crypto-envelope.js";
 import { SecurityError, UsageError } from "./lib/errors.js";
@@ -31,7 +33,7 @@ import { searchArchive } from "./lib/search.js";
 import { acquireSharedSnapshot } from "./lib/share-link.js";
 import { renderStaticViewer } from "./lib/viewer.js";
 
-const HELP = `Context Ledger 2.0 — local-first AI conversation archives
+const HELP = `Context Ledger 2.5 — local-first AI conversation archives
 
 Usage:
   import-markdown --input <file> --out <relative-directory>
@@ -46,6 +48,11 @@ Usage:
   evaluate-handoff --archive <file> --query <text> --task <text> --out <new-relative-directory>
   package-export --archive <file> --out <relative-file.aicx>
   package-import --input <file.aicx> --out <relative-directory>
+  graph-build --archive <file>
+  graph-verify --archive <file>
+  graph-link --archive <file> --from <event-id> --to <event-id> --kind <supports|clarifies|supersedes|depends_on|answers|relates_to>
+  graph-brief --archive <file> --out <relative-markdown-file>
+  graph-viewer --archive <file> --out <relative-html-file> [--query <text>]
   encrypt --input <archive-file> --out <relative-file>
   decrypt --input <encrypted-file> --out <relative-file>
   fetch-share --url <supported-public-share-link> --out <relative-directory>
@@ -356,6 +363,111 @@ async function commandPackageImport(values) {
   });
 }
 
+async function commandGraphBuild(values) {
+  const archivePath = one(values, "archive");
+  const archive = await readArchive(archivePath);
+  const result = await rebuildConversationGraph(archivePath, archive);
+  writeJson({
+    graph: result.path,
+    archiveId: archive.archiveId,
+    nodes: result.graph.nodes.length,
+    timelineEdges: Math.max(0, result.graph.nodes.length - 1),
+    manualEdges: manualGraphEdges(result.graph).length,
+    aiCalls: 0,
+    networkRequests: 0,
+  });
+}
+
+async function commandGraphVerify(values) {
+  const archivePath = one(values, "archive");
+  const archive = await readArchive(archivePath);
+  const graph = await readConversationGraph(archivePath, archive);
+  if (!graph) throw new SecurityError("No conversation graph exists for this archive. Run graph-build first.");
+  writeJson({
+    verified: true,
+    archiveId: archive.archiveId,
+    nodes: graph.nodes.length,
+    timelineEdges: Math.max(0, graph.nodes.length - 1),
+    manualEdges: manualGraphEdges(graph).length,
+    aiCalls: 0,
+    networkRequests: 0,
+  });
+}
+
+async function commandGraphLink(values) {
+  const archivePath = one(values, "archive");
+  const archive = await readArchive(archivePath);
+  const result = await addConversationGraphEdge(archivePath, archive, {
+    from: one(values, "from"),
+    to: one(values, "to"),
+    kind: one(values, "kind"),
+  });
+  writeJson({
+    graph: result.path,
+    archiveId: archive.archiveId,
+    manualEdges: manualGraphEdges(result.graph).length,
+    aiCalls: 0,
+    networkRequests: 0,
+  });
+}
+
+async function graphForArchive(archivePath, archive) {
+  return (await readConversationGraph(archivePath, archive)) || buildConversationGraph(archive);
+}
+
+async function commandGraphBrief(values) {
+  const archivePath = one(values, "archive");
+  const archive = await readArchive(archivePath);
+  const annotations = await readAnnotations(archivePath, archive);
+  const graph = await graphForArchive(archivePath, archive);
+  const output = await writeNewFile(one(values, "out"), buildConversationBrief(archive, annotations, graph));
+  writeJson({
+    brief: output,
+    archiveId: archive.archiveId,
+    graphPersisted: await readConversationGraph(archivePath, archive) !== null,
+    manualEdges: manualGraphEdges(graph).length,
+    aiCalls: 0,
+    networkRequests: 0,
+    limitation: "This deterministic inventory does not infer decisions, tasks, entities, or a semantic summary.",
+  });
+}
+
+async function commandGraphViewer(values) {
+  const archivePath = one(values, "archive");
+  const archive = await readArchive(archivePath);
+  const graph = await graphForArchive(archivePath, archive);
+  const query = one(values, "query", { optional: true });
+  let selectedIds;
+  let selectionLabel;
+  let retrieval = "recent-events";
+  if (query) {
+    const index = await readInvertedIndex(archivePath, archive);
+    const results = index ? searchInvertedIndex(archive, index, query) : searchArchive(archive, query);
+    selectedIds = expandEvidenceWindow(archive, results.slice(0, 7).map((result) => result.id));
+    selectionLabel = results.length === 0 ? `no matches for ${query}; recent events` : `query: ${query}`;
+    if (selectedIds.length === 0) selectedIds = selectConversationMapEvents(archive);
+    retrieval = results.length === 0
+      ? `${index ? "checksum-bound-inverted-index" : "direct-scan"}-no-match-recent-fallback`
+      : index ? "checksum-bound-inverted-index" : "direct-scan";
+  } else {
+    selectedIds = selectConversationMapEvents(archive);
+    selectionLabel = "most recent event nodes";
+  }
+  const output = await writeNewFile(
+    one(values, "out"),
+    renderConversationMapViewer(archive, graph, selectedIds, { selectionLabel }),
+  );
+  writeJson({
+    viewer: output,
+    archiveId: archive.archiveId,
+    renderedNodes: selectedIds.length,
+    manualEdges: manualGraphEdges(graph).length,
+    retrieval,
+    aiCalls: 0,
+    networkRequests: 0,
+  });
+}
+
 async function commandEncrypt(values) {
   const plaintext = await readSafeFile(one(values, "input"), 12 * 1024 * 1024);
   const first = await readPassphrase("Passphrase: ");
@@ -560,6 +672,11 @@ async function main() {
     "evaluate-handoff": commandEvaluateHandoff,
     "package-export": commandPackageExport,
     "package-import": commandPackageImport,
+    "graph-build": commandGraphBuild,
+    "graph-verify": commandGraphVerify,
+    "graph-link": commandGraphLink,
+    "graph-brief": commandGraphBrief,
+    "graph-viewer": commandGraphViewer,
     encrypt: commandEncrypt,
     decrypt: commandDecrypt,
     "fetch-share": commandFetchShare,
@@ -594,6 +711,11 @@ async function main() {
     "evaluate-handoff": ["archive", "query", "task", "out"],
     "package-export": ["archive", "out"],
     "package-import": ["input", "out"],
+    "graph-build": ["archive"],
+    "graph-verify": ["archive"],
+    "graph-link": ["archive", "from", "to", "kind"],
+    "graph-brief": ["archive", "out"],
+    "graph-viewer": ["archive", "out", "query"],
     encrypt: ["input", "out"],
     decrypt: ["input", "out"],
     "fetch-share": ["url", "out"],

@@ -2,11 +2,11 @@
 
 ## Current status
 
-The published baseline is `v1.3.0`. It has one deliberately narrow ChatGPT public-share adapter, deterministic local retrieval, optional local encryption, no required AI API use, and verified offline replay of a captured ChatGPT snapshot.
+The latest published release is `v2.0.0`. It has one deliberately narrow ChatGPT public-share adapter, deterministic local retrieval, optional local encryption, no required AI API use, verified offline replay of a captured ChatGPT snapshot, and a portable one-conversation package.
 
-That is encouraging, but it is not enough evidence to call the adapter broadly reliable or the product launch-ready. The public release history includes `v1.0.0` through `v1.3.0`.
+That is encouraging, but it is not enough evidence to call the adapter broadly reliable or the product fully launch-ready. The public release history includes `v1.0.0` through `v1.3.0` and `v2.0.0`.
 
-The unreleased guided-handoff and measurement work is bundled into the `v2.0.0` development line rather than being tagged as `v1.4.0` or `v1.5.0`. `v2.0.0` adds a strictly bounded local `.aicx` package for one conversation. It is not automatic provider import, a new provider parser, a cloud service, or a browser companion. The independent-usability study remains valuable future evidence, but has not been run and must not be claimed as complete.
+The untagged guided-handoff and measurement work was bundled into `v2.0.0` rather than being released as `v1.4.0` or `v1.5.0`. The `v2.5.0` development line adds a deterministic one-conversation map: timeline edges, deliberate forward-only evidence links, a zero-AI brief, a static local viewer, and package preservation for manual links. It is not automatic provider import, a new provider parser, a cloud service, or an AI-generated knowledge graph. The independent-usability study remains valuable future evidence, but has not been run and must not be claimed as complete.
 
 ## Positioning
 
@@ -27,7 +27,9 @@ Do not claim that the tool can universally move chats between AI products. A rec
 | `v1.3.0` | Offline snapshot replay | A `fetch-share` HTML/metadata pair is verified and imported without network; mismatch, tampering, and non-ChatGPT metadata fail before archive creation. |
 | `v1.4.0` | Guided handoff usability | No standalone tag. The feature is included in `v2.0.0`; the independent three-user study was not run and is not claimed. |
 | `v1.5.0` | Handoff measurement | No standalone tag. The reproducible local evaluation kit is included in `v2.0.0`; it remains a tool for collecting evidence, not a completed quality claim. |
-| `v2.0.0` | Portable single-conversation package | Stored-only package round-trip and hostile-input tests pass, `npm test`, syntax, and release checks pass, and documentation states the security and interoperability limits. This does **not** claim external review or outside-user validation. |
+| `v2.0.0` | Portable single-conversation package | Published 2026-10-18. Stored-only package round-trip and hostile-input tests passed; no external review or outside-user validation was claimed. |
+| `v2.1`–`v2.4` | Conversation-map increments | Combined into `v2.5.0`; no standalone tags planned. |
+| `v2.5.0` | Deterministic conversation map | Graph, package, viewer, and hostile-input tests pass; `npm test`, syntax, and release checks pass; documentation states that links are human assertions and that no automatic semantic inference occurs. |
 
 Dates are estimates, not promises. A gate that fails changes the plan rather than being waived.
 
@@ -63,14 +65,14 @@ Until then, ChatGPT share support remains narrow and versioned, not universal. C
 
 ## Deferred work
 
-The following remain out of scope after `v2.0.0`:
+The following remain out of scope after `v2.5.0`:
 
 - New provider parsers or account-export importers.
 - Attachments, arbitrary package assets, or a general ZIP reader.
 - Embeddings, vector databases, automatic extraction, or new graph features.
 - Browser companions, cloud sync, accounts, teams, and executable plugins.
 
-The `v2.0.0` package uses a deliberately narrow stored-only ZIP subset implemented and tested in-tree; it is not a general ZIP parser. Any expansion to compression, attachments, or broader ZIP compatibility requires a new format review and security tests.
+The `v2.5.0` package writer uses a deliberately narrow stored-only ZIP subset implemented and tested in-tree; it is not a general ZIP parser. Any expansion to compression, attachments, or broader ZIP compatibility requires a new format review and security tests.
 
 ## Measurement and launch discipline
 
