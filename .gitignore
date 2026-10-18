@@ -2,6 +2,7 @@
 archives/
 snapshots/
 work/
+*.aicx
 *.aicx.enc
 *.ai.json
 *.aicx.project.json
@@ -10,5 +11,3 @@ work/
 .env
 .idea/
 .DS_Store
-
-*.iml

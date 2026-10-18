@@ -2,7 +2,7 @@
 
 ## Supported version
 
-The latest published Git release is `v1.3.0`. The planned `v1.5.0` release includes guided handoff and handoff-evaluation work; it remains unreleased until both evidence gates are complete, tagged, and published. No standalone `v1.4.0` tag is planned. See the [rollout plan](docs/rollout-plan.md) for the current evidence gates.
+The latest published Git release is `v1.3.0`. The `v2.0.0` development line includes the previously untagged guided-handoff/evaluation work and portable single-conversation packages. It does not claim that an external security review or independent user study has occurred. See the [rollout plan](docs/rollout-plan.md) for current evidence and release boundaries.
 
 ## Reporting a vulnerability
 

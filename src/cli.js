@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import path from "node:path";
 import { createAiPlan, invokeAiPlan } from "./lib/ai.js";
+import { exportPortablePackage, importPortablePackage } from "./lib/aicx-package.js";
 import { createArchiveFromMarkdown, createArchiveFromNormalizedImport, addAnnotation, readAnnotations, readArchive, writeArchiveBundle } from "./lib/archive.js";
 import { importChatGptSharedConversation, importChatGptSharedSnapshot } from "./lib/chatgpt-share.js";
 import { expandEvidenceWindow, buildContinuationPacket, buildGuidedHandoff } from "./lib/context.js";
@@ -30,7 +31,7 @@ import { searchArchive } from "./lib/search.js";
 import { acquireSharedSnapshot } from "./lib/share-link.js";
 import { renderStaticViewer } from "./lib/viewer.js";
 
-const HELP = `Context Ledger 1.5 — local-first AI conversation archives
+const HELP = `Context Ledger 2.0 — local-first AI conversation archives
 
 Usage:
   import-markdown --input <file> --out <relative-directory>
@@ -43,6 +44,8 @@ Usage:
   continue --archive <file> --out <relative-file> [--select <event-id> ... | --query <text>]
   handoff --archive <file> --out <relative-file> [--select <event-id> ... | --query <text>]
   evaluate-handoff --archive <file> --query <text> --task <text> --out <new-relative-directory>
+  package-export --archive <file> --out <relative-file.aicx>
+  package-import --input <file.aicx> --out <relative-directory>
   encrypt --input <archive-file> --out <relative-file>
   decrypt --input <encrypted-file> --out <relative-file>
   fetch-share --url <supported-public-share-link> --out <relative-directory>
@@ -333,6 +336,26 @@ async function commandEvaluateHandoff(values) {
   });
 }
 
+async function commandPackageExport(values) {
+  const result = await exportPortablePackage(one(values, "archive"), one(values, "out"));
+  writeJson({
+    ...result,
+    aiCalls: 0,
+    networkRequests: 0,
+    nextStep: "Store or share the .aicx package only through a channel appropriate for its conversation content. A recipient can import it locally, generate a reviewed handoff, then use their destination chat's normal paste or attachment interface.",
+  });
+}
+
+async function commandPackageImport(values) {
+  const result = await importPortablePackage(one(values, "input"), one(values, "out"));
+  writeJson({
+    ...result,
+    aiCalls: 0,
+    networkRequests: 0,
+    nextStep: "Verify the imported index, review a generated handoff, then paste or attach that reviewed handoff in a new chat using the destination product's normal interface.",
+  });
+}
+
 async function commandEncrypt(values) {
   const plaintext = await readSafeFile(one(values, "input"), 12 * 1024 * 1024);
   const first = await readPassphrase("Passphrase: ");
@@ -535,6 +558,8 @@ async function main() {
     continue: commandContinue,
     handoff: commandHandoff,
     "evaluate-handoff": commandEvaluateHandoff,
+    "package-export": commandPackageExport,
+    "package-import": commandPackageImport,
     encrypt: commandEncrypt,
     decrypt: commandDecrypt,
     "fetch-share": commandFetchShare,
@@ -567,6 +592,8 @@ async function main() {
     continue: ["archive", "out", "select", "query"],
     handoff: ["archive", "out", "select", "query"],
     "evaluate-handoff": ["archive", "query", "task", "out"],
+    "package-export": ["archive", "out"],
+    "package-import": ["input", "out"],
     encrypt: ["input", "out"],
     decrypt: ["input", "out"],
     "fetch-share": ["url", "out"],
