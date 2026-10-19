@@ -2,11 +2,11 @@
 
 `Context Ledger` is a local-first, Git-hosted tool for retaining and handing off one important AI conversation at a time. It preserves the imported transcript, builds a deterministic local index, and creates bounded continuation packets. Related-archive project graph support is separate and optional.
 
-It is deliberately **not** a universal ChatGPT/Claude/Gemini scraper. Published `v2.0.0` adds a real portable package for one conversation. The `v2.5.0` development line adds a local, deterministic conversation map and safe offline viewer. It still does not claim automatic provider import or full account-export fidelity.
+It is deliberately **not** a universal ChatGPT/Claude/Gemini scraper. Published `v2.5.0` adds a real portable package for one conversation, a local deterministic conversation map, and a safe offline viewer. The current `v2.5.1` release corrects project-status wording only. Context Ledger still does not claim automatic provider import or full account-export fidelity.
 
 For a full technical and product handoff—including architecture, current feature boundaries, security decisions, and a ready-to-use AI collaboration prompt—read the [project guidebook](docs/project-guidebook.md).
 
-## Current capability and `v2.5.0` development
+## Current capability
 
 - Exact UTF-8 Markdown import and strict normalized-JSON import.
 - Portable `aicx/0.3` JSON archive: immutable transcript, deterministic event projection, SHA-256 integrity fields, and readable companion files. Older `aicx/0.1` and `aicx/0.2` archives remain readable.
@@ -60,7 +60,7 @@ The command performs one HTTPS request to the public page; it sends no cookies, 
 
 ## The portable data model
 
-The canonical archive remains the JSON file named `archive.aicx.json`. `v2.0.0` additionally exports one-conversation `.aicx` packages through a deliberately narrow stored-only ZIP subset; it is not a generic ZIP importer. See [the portable-package specification](docs/v2.0.0-portable-package.md).
+The canonical archive remains the JSON file named `archive.aicx.json`. `v2.0.0` introduced one-conversation `.aicx` packages through a deliberately narrow stored-only ZIP subset; `v2.5.0` adds preservation for manual conversation-map links. It is not a generic ZIP importer. See [the portable-package specification](docs/v2.0.0-portable-package.md).
 
 An archive is one `archive.aicx.json` file plus optional derived files:
 

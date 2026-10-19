@@ -2,7 +2,7 @@
 
 ## Supported version
 
-The latest published Git release is `v2.0.0`. The `v2.5.0` development line adds a deterministic conversation-map sidecar, manual forward-only links, and a static local viewer. It does not claim that an external security review or independent user study has occurred. See the [rollout plan](docs/rollout-plan.md) for current evidence and release boundaries.
+The latest published Git release is `v2.5.1`. `v2.5.0` adds a deterministic conversation-map sidecar, manual forward-only links, and a static local viewer; `v2.5.1` corrects project-status wording only. Neither release claims that an external security review or independent user study has occurred. See the [rollout plan](docs/rollout-plan.md) for current evidence and release boundaries.
 
 ## Reporting a vulnerability
 
