@@ -2,11 +2,11 @@
 
 ## Current status
 
-The latest published release is `v2.0.0`. It has one deliberately narrow ChatGPT public-share adapter, deterministic local retrieval, optional local encryption, no required AI API use, verified offline replay of a captured ChatGPT snapshot, and a portable one-conversation package.
+The latest published release is `v2.5.1`. The functional `v2.5.0` release has one deliberately narrow ChatGPT public-share adapter, deterministic local retrieval, optional local encryption, no required AI API use, verified offline replay of a captured ChatGPT snapshot, a portable one-conversation package, and a deterministic conversation map. `v2.5.1` corrects release-status documentation only.
 
-That is encouraging, but it is not enough evidence to call the adapter broadly reliable or the product fully launch-ready. The public release history includes `v1.0.0` through `v1.3.0` and `v2.0.0`.
+That is encouraging, but it is not enough evidence to call the adapter broadly reliable or the product fully launch-ready. The public release history includes `v1.0.0` through `v1.3.0`, `v2.0.0`, `v2.5.0`, and `v2.5.1`.
 
-The untagged guided-handoff and measurement work was bundled into `v2.0.0` rather than being released as `v1.4.0` or `v1.5.0`. The `v2.5.0` development line adds a deterministic one-conversation map: timeline edges, deliberate forward-only evidence links, a zero-AI brief, a static local viewer, and package preservation for manual links. It is not automatic provider import, a new provider parser, a cloud service, or an AI-generated knowledge graph. The independent-usability study remains valuable future evidence, but has not been run and must not be claimed as complete.
+The untagged guided-handoff and measurement work was bundled into `v2.0.0` rather than being released as `v1.4.0` or `v1.5.0`. Published `v2.5.0` adds a deterministic one-conversation map: timeline edges, deliberate forward-only evidence links, a zero-AI brief, a static local viewer, and package preservation for manual links. It is not automatic provider import, a new provider parser, a cloud service, or an AI-generated knowledge graph. The independent-usability study remains valuable future evidence, but has not been run and must not be claimed as complete.
 
 ## Positioning
 
@@ -29,7 +29,8 @@ Do not claim that the tool can universally move chats between AI products. A rec
 | `v1.5.0` | Handoff measurement | No standalone tag. The reproducible local evaluation kit is included in `v2.0.0`; it remains a tool for collecting evidence, not a completed quality claim. |
 | `v2.0.0` | Portable single-conversation package | Published 2026-10-18. Stored-only package round-trip and hostile-input tests passed; no external review or outside-user validation was claimed. |
 | `v2.1`–`v2.4` | Conversation-map increments | Combined into `v2.5.0`; no standalone tags planned. |
-| `v2.5.0` | Deterministic conversation map | Graph, package, viewer, and hostile-input tests pass; `npm test`, syntax, and release checks pass; documentation states that links are human assertions and that no automatic semantic inference occurs. |
+| `v2.5.0` | Deterministic conversation map | Published. Graph, package, viewer, and hostile-input tests pass; `npm test`, syntax, release checks, a clean-clone test, and a disposable live canary pass. Links are human assertions; no automatic semantic inference occurs. |
+| `v2.5.1` | Release-status documentation correction | Published. Corrects version/status wording only; no runtime, archive, package, parser, or security-behavior change. |
 
 Dates are estimates, not promises. A gate that fails changes the plan rather than being waived.
 

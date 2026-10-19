@@ -1,8 +1,13 @@
 # Changelog
 
-## Unreleased — 2.5.0 deterministic conversation map
+## 2.5.1 — 2026-10-19 release-status documentation correction
 
-This development line combines the planned 2.1–2.5 map work without adding AI inference, cloud state, or a new provider scraper.
+- Corrects the README, security policy, rollout plan, and guidebook to identify `v2.5.0` as published and `v2.5.1` as the current release.
+- Makes no runtime, archive, package, parser, or security-behavior change.
+
+## 2.5.0 — 2026-10-19 deterministic conversation map
+
+This release combines the planned 2.1–2.5 map work without adding AI inference, cloud state, or a new provider scraper.
 
 - Adds a deterministic `context-ledger-conversation-graph/0.1` sidecar. Every immutable archive event becomes a node and every adjacent pair receives an automatic `next` edge.
 - Adds deliberate, forward-only `supports`, `clarifies`, `supersedes`, `depends_on`, `answers`, and `relates_to` links. A link cannot create a cycle or alter chronology.

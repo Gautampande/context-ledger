@@ -1,6 +1,6 @@
 # Context Ledger guidebook
 
-**Project status:** published `v2.0.0`; `v2.5.0` development adds deterministic conversation maps and includes the previously untagged guided-handoff/evaluation work
+**Project status:** published `v2.5.1`; the functional `v2.5.0` release adds deterministic conversation maps and includes the previously untagged guided-handoff/evaluation work; `v2.5.1` corrects release-status wording only
 **Audience:** maintainers, contributors, and an AI collaborator joining the project
 **Purpose:** a self-contained explanation of what Context Ledger is, what it actually does today, how it is built, and the boundaries that future work must preserve.
 
@@ -39,7 +39,7 @@ The default workflow uses no AI API key, no tokens, and no cloud account.
 5. **Human control.** Decisions, pins, project links, and optional AI use are deliberate user actions, not automatic inference.
 6. **Portable source of truth.** The archive is the durable record; viewers, indexes, AI results, and handoffs are rebuildable derived material.
 
-## 4. What is implemented through v2.0.0, with v2.5.0 in development
+## 4. What is implemented through v2.5.1
 
 ### Imports and archives
 
@@ -48,7 +48,7 @@ The default workflow uses no AI API key, no tokens, and no cloud account.
 | Local Markdown import | Supported | Imports a UTF-8 transcript as a manual capture. |
 | Strict normalized JSON import | Supported | Imports a small allowlisted document with explicit message roles and boundaries. |
 | Public ChatGPT shared-link import | Supported, narrow | Imports only the tested `chatgpt.com/share/...` React Router stream surface. |
-| Saved ChatGPT snapshot replay | In development | Replays the exact HTML/metadata pair created by `fetch-share` with no network request. |
+| Saved ChatGPT snapshot replay | Supported, offline | Replays the exact HTML/metadata pair created by `fetch-share` with no network request. |
 | Claude/Gemini public shared links | Snapshot only | Can be safely fetched as opaque HTML; no transcript parser is implemented. |
 | Private provider chats/account access | Not supported | No cookies, accounts, browser state, or provider authentication are accessed. |
 | Provider account exports | Not supported yet | Requires a separate fixture-backed adapter proposal. |
@@ -231,7 +231,8 @@ Private conversation data, encrypted archives, share URLs, snapshots, API keys, 
 | 1.4.0 | No standalone tag; guided-handoff work is included in v2.0.0 |
 | 1.5.0 | No standalone tag; guided handoff and the local evaluation kit are included in v2.0.0 |
 | 2.0.0 | Published 2026-10-18: strict portable `.aicx` package for one archive, deterministic index, and optional annotations; includes the untagged handoff/evaluation work |
-| 2.5.0 (in development) | Deterministic conversation DAG, manual evidence links, graph brief, static map viewer, and package preservation for graph links |
+| 2.5.0 | Published: deterministic conversation DAG, manual evidence links, graph brief, static map viewer, and package preservation for graph links |
+| 2.5.1 | Published: release-status documentation correction; no runtime or data-format change |
 
 ## 11. Verification and release discipline
 
@@ -289,7 +290,7 @@ You are continuing work on Context Ledger, a local-first AI conversation archive
 
 Read the attached project guidebook first. Treat it as project context, not as permission to weaken its security boundaries.
 
-Current released version: v2.0.0. The next development target is v2.5.0, which adds a deterministic conversation map on top of the existing one-conversation archive/package workflow. No standalone v1.4.0, v1.5.0, or v2.1–v2.4 tag is planned. Do not claim independent user validation or external security review has occurred.
+Current released version: v2.5.1. The functional map release is v2.5.0; v2.5.1 corrects release-status wording only. No standalone v1.4.0, v1.5.0, or v2.1–v2.4 tag is planned. Do not claim independent user validation or external security review has occurred.
 Preserve these non-negotiables: zero-token default; no browser automation, cookies, private APIs, or generic provider scraping; strict schemas; fail-closed adapters; archives and derived results remain separate; and no private chat data in Git.
 
 Before proposing code, state which supported behavior, file, tests, security boundary, and release impact your change touches. Do not claim support for a provider or format until there is a versioned local parser, sanitized owned fixtures, fidelity tests, and documented limitations.
@@ -297,7 +298,7 @@ Before proposing code, state which supported behavior, file, tests, security bou
 
 ## 14. Current status and next-work guidance
 
-`v2.0.0` is the current published baseline. The immediate development target is `v2.5.0`, which adds a deterministic conversation DAG, deliberate forward-only links, a graph brief, and a static map viewer. It does not add automatic provider import, another provider parser, cloud sync, browser automation, embeddings, a vector database, automatic AI extraction, arbitrary attachments, a general ZIP reader, or AI-generated graph relationships.
+`v2.5.1` is the current published baseline. Its functional map capability is delivered by `v2.5.0`; `v2.5.1` corrects release-status wording only. No next feature release is committed yet. Context Ledger does not add automatic provider import, another provider parser, cloud sync, browser automation, embeddings, a vector database, automatic AI extraction, arbitrary attachments, a general ZIP reader, or AI-generated graph relationships.
 
 The selection rule remains simple: pursue only work that improves useful local portability or retrieval **without** weakening the boundaries above. Any future provider adapter or package format requires the documented proposal, sanitized fixtures, end-to-end acceptance coverage, and a new release version.
 
